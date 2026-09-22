@@ -63,6 +63,7 @@ export const venues = [
   { name: "東勢羽球館", district: "東勢區", address: "臺中市東勢區東關路七段78號", type: "民營" },
   { name: "霧峰健體中心", district: "霧峰區", address: "臺中市霧峰區成功路200號", type: "公營" },
   { name: "帥一成球館", district: "北屯區", address: "臺中市北屯區環中東路二段472號", type: "民營" },
+  { name: "亞伯林羽球館（振興店）", district: "東區", address: "臺中市東區振興路284巷2號", type: "民營", importedAt: "2026-09-22" },
 ].map((venue, index) => ({
   id: `tc-${String(index + 1).padStart(3, "0")}`,
   city: "臺中市",

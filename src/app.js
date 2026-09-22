@@ -13,7 +13,7 @@ export function createApp(options = {}) {
         return sendJson(res, 200, {
           ok: true,
           app: appConfig.appName,
-          version: process.env.npm_package_version || "0.1.0",
+          version: process.env.npm_package_version || "1.0.0",
           time: new Date().toISOString(),
         });
       }
@@ -33,4 +33,3 @@ export function createApp(options = {}) {
     }
   };
 }
-

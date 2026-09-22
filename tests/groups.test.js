@@ -3,8 +3,8 @@ import test from "node:test";
 import { recurringGroups, recurringSessions } from "../public/groups.js";
 
 test("匯入的固定團皆有可辨識的核心欄位", () => {
-  assert.equal(recurringGroups.length, 47);
-  assert.equal(recurringSessions.length, 71);
+  assert.equal(recurringGroups.length, 51);
+  assert.equal(recurringSessions.length, 80);
 
   for (const group of recurringGroups) {
     assert.ok(["active", "disabled", "hidden"].includes(group.status));
@@ -44,6 +44,21 @@ test("T.S.D 已建立福慧羽球館週一固定場次", () => {
   assert.equal(session.courts, 2);
   assert.equal(session.courtNote, "基本 2 面（1、2 場）");
   assert.deepEqual(session.prices, ["男性 $190", "女性 $170"]);
+});
+
+test("新聊天紀錄只匯入可明確辨識的固定團", () => {
+  const expected = new Map([
+    ["曜丞羽球隊", 1],
+    ["哈酷哪瑪踏踏", 1],
+    ["美羽季節", 1],
+    ["陽光羽球", 6],
+  ]);
+
+  for (const [name, sessionCount] of expected) {
+    const group = recurringGroups.find((item) => item.name === name);
+    assert.ok(group, `${name} 應已匯入`);
+    assert.equal(group.sessions.length, sessionCount);
+  }
 });
 
 test("固定場次以團名、星期、時間及球館去重", () => {

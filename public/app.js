@@ -1,6 +1,7 @@
 import { venues } from "./venues.js";
 import { recurringGroups, recurringSessions, weekdayLabels } from "./groups.js";
 import { getCurrentUser } from "./account.js";
+import { getUpcomingWeekDays } from "./week-dates.js";
 
 const venueStorageKey = "badminton-venue-directory-v1";
 try {
@@ -14,17 +15,8 @@ try {
   localStorage.removeItem(venueStorageKey);
 }
 
-const weekDays = [
-  { label: "一", date: "9/21", day: "21", key: 1 },
-  { label: "二", date: "9/22", day: "22", key: 2 },
-  { label: "三", date: "9/23", day: "23", key: 3 },
-  { label: "四", date: "9/24", day: "24", key: 4 },
-  { label: "五", date: "9/25", day: "25", key: 5 },
-  { label: "六", date: "9/26", day: "26", key: 6 },
-  { label: "日", date: "9/27", day: "27", key: 0 },
-];
-
-const weekDayByKey = new Map(weekDays.map((day) => [day.key, day]));
+let weekDays = getUpcomingWeekDays();
+let weekDayByKey = new Map(weekDays.map((day) => [day.key, day]));
 function sessionToActivity(session) {
   return {
   ...session,
@@ -39,6 +31,16 @@ function sessionToActivity(session) {
   };
 }
 const activities = recurringSessions.map(sessionToActivity);
+
+function refreshWeekDates() {
+  const nextWeekDays = getUpcomingWeekDays();
+  if (nextWeekDays.every((day, index) => day.isoDate === weekDays[index].isoDate)) return;
+  weekDays = nextWeekDays;
+  weekDayByKey = new Map(weekDays.map((day) => [day.key, day]));
+  activities.forEach((activity) => {
+    activity.day = weekDayByKey.get(activity.isoDay).day;
+  });
+}
 
 const views = document.querySelectorAll(".view");
 const navItems = document.querySelectorAll(".nav__item");
@@ -123,6 +125,7 @@ function matchesLevel(level, selected) {
 }
 
 function renderActivities() {
+  refreshWeekDates();
   const query = searchInput.value.trim().toLowerCase();
   const visible = activities.filter((activity) => {
     const haystack = `${activity.name} ${activity.venue} ${activity.district} ${activity.contact} ${activity.ball}`.toLowerCase();
@@ -163,6 +166,7 @@ function renderActivities() {
 }
 
 function renderWeek() {
+  refreshWeekDates();
   const district = weekDistrictFilter.value;
   const venue = weekVenueFilter.value;
   const visible = activities.filter((activity) => getActivityAvailability(activity).status !== "hidden"
