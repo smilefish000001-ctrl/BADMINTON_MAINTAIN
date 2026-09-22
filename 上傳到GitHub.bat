@@ -1,4 +1,5 @@
-@echo off
+﻿@echo off
+chcp 65001 >nul
 setlocal EnableExtensions EnableDelayedExpansion
 title 羽球活動表 - 上傳到 GitHub
 cd /d "%~dp0"
@@ -92,4 +93,3 @@ echo 操作失敗，請查看上方錯誤訊息。
 echo.
 pause
 endlocal
-
