@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#075e54">
+  <meta name="description" content="快速查看、篩選並參加一週羽球揪團活動。">
+  <title>羽球揪團表</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css?v=17">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#activities" aria-label="羽球揪團表首頁">
+      <span class="brand__mark" aria-hidden="true">羽</span>
+      <span><b>羽球揪團表</b><small>找球友，隨時開打</small></span>
+    </a>
+    <button class="profile" id="current-profile" type="button" aria-label="目前登入帳號">
+      <span class="avatar" id="current-user-avatar">管</span>
+      <span class="profile__text"><b id="current-user-name">系統管理員</b><small id="current-user-role">管理員</small></span>
+      <span aria-hidden="true">⌄</span>
+    </button>
+  </header>
+  <nav class="nav" aria-label="主要導覽">
+    <button class="nav__item is-active" type="button" data-view="activities">活動總覽</button>
+    <button class="nav__item" type="button" data-view="week">整週活動</button>
+    <button class="nav__item" type="button" data-view="groups">開團設定</button>
+    <button class="nav__item" type="button" data-view="venues">球館維護</button>
+  </nav>
+
+  <main>
+    <section class="view is-visible" id="view-activities" aria-labelledby="activities-title">
+      <div class="page-heading">
+        <div>
+          <p class="kicker">SEP 21 — SEP 27</p>
+          <h1 id="activities-title">這週，一起打球</h1>
+          <p>找到合適的場次，確認名額後直接參加。</p>
+        </div>
+        <button class="primary-action" type="button" data-demo-toast="開團功能會在下一階段串接資料庫">＋ 建立揪團</button>
+      </div>
+
+      <div class="filter-bar" aria-label="活動篩選">
+        <label class="search-field"><span aria-hidden="true">⌕</span><input id="activity-search" type="search" placeholder="搜尋球團、球館、用球或聯絡人" autocomplete="off"></label>
+        <label><span class="sr-only">行政區</span><select id="activity-district-filter"><option value="all">所有行政區</option></select></label>
+        <label><span class="sr-only">星期</span><select id="weekday-filter"><option value="all">整週</option><option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option><option value="4">星期四</option><option value="5">星期五</option><option value="6">星期六</option><option value="0">星期日</option></select></label>
+        <label><span class="sr-only">程度</span><select id="level-filter"><option value="all">所有程度</option></select></label>
+      </div>
+
+      <div class="summary-row"><p>共 <strong id="result-count">0</strong> 個固定活動</p><div class="legend"><span><i class="legend__dot legend__dot--unknown"></i>名額請洽團主</span></div></div>
+      <div class="activity-grid" id="activity-grid"></div>
+      <div class="empty-state" id="empty-state" hidden><b>沒有符合的場次</b><span>換個地區或程度看看。</span></div>
+    </section>
+
+    <section class="view" id="view-week" aria-label="整週活動">
+      <div class="week-toolbar"><label class="compact-select">行政區 <select id="week-district-filter"><option value="all">全部行政區</option></select></label><label class="compact-select">球館 <select id="week-venue-filter"><option value="all">全部球館</option></select></label></div>
+      <div class="week-board" id="week-board"></div>
+    </section>
+
+    <section class="view" id="view-groups" aria-label="固定開團設定">
+      <section class="group-directory" aria-label="固定開團列表">
+        <div class="group-directory__filters">
+          <label class="search-field"><span aria-hidden="true">⌕</span><input id="group-search" type="search" placeholder="搜尋團名、球館或聯絡人" autocomplete="off"></label>
+          <label><span class="sr-only">星期</span><select id="group-weekday-filter"><option value="all">整週</option><option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option><option value="4">星期四</option><option value="5">星期五</option><option value="6">星期六</option><option value="0">星期日</option></select></label>
+          <label><span class="sr-only">行政區</span><select id="group-district-filter"><option value="all">全部行政區</option></select></label>
+          <label><span class="sr-only">狀態</span><select id="group-status-filter"><option value="all">全部狀態</option><option value="active">正常</option><option value="disabled">停用</option><option value="hidden">隱藏</option></select></label>
+          <label><span class="sr-only">排序</span><select id="group-sort"><option value="weekday">依星期時間</option><option value="name">依團名</option><option value="venue">依球館</option><option value="updated">依資料來源</option></select></label>
+          <span class="group-directory__count">共 <b id="group-count">0</b> 團／<b id="session-count">0</b> 場</span>
+          <button class="primary-action" id="new-group-button" type="button">＋ 新增固定團</button>
+        </div>
+        <div class="group-grid" id="group-grid"></div>
+        <div class="empty-state" id="group-empty" hidden><b>找不到符合的固定團</b><span>請更換團名、球館或星期。</span></div>
+      </section>
+      <dialog class="group-editor-dialog" id="group-editor-dialog" aria-labelledby="group-editor-title">
+      <div class="group-editor-dialog__head"><div><span class="tag tag--mint" id="group-editor-mode">新增</span><h2 id="group-editor-title">新增固定團</h2></div><button type="button" id="group-editor-close" aria-label="關閉固定團維護視窗">×</button></div>
+      <form class="group-form" id="group-form">
+        <section class="form-section">
+          <div class="form-section__title"><span>01</span><div><h2>球團基本資料</h2><p>固定內容建立一次，每週場次共用。</p></div></div>
+          <div class="form-grid">
+            <label class="field field--wide"><span>球團／活動名稱</span><input id="group-name-input" required></label>
+            <label class="field"><span>聯絡人</span><input id="group-contact-input"></label>
+            <label class="field"><span>狀態</span><select id="group-status-input"><option value="active">正常</option><option value="disabled">停用</option><option value="hidden">隱藏</option></select></label>
+            <label class="field field--wide"><span>LINE 群組連結或 ID</span><input id="group-line-input" placeholder="https://line.me/ti/g/... 或 LINE ID"></label>
+          </div>
+        </section>
+        <section class="form-section">
+          <div class="form-section__title"><span>02</span><div><h2>每週場次、程度與收費</h2><p>一個固定場次包含星期、時段、球館、程度、人數及完整價格。</p></div></div>
+          <div class="session-card">
+            <div class="session-card__head"><b>固定場次 1</b><span class="session-card__badge">每週重複</span></div>
+            <div class="form-grid form-grid--session">
+              <label class="field"><span>星期</span><select id="group-session-weekday"><option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option><option value="4">星期四</option><option value="5">星期五</option><option value="6">星期六</option><option value="0">星期日</option></select></label>
+              <label class="field"><span>開始時間</span><input id="group-session-start" type="time" step="1800" value="19:00"></label>
+              <label class="field"><span>結束時間</span><input id="group-session-end" type="time" step="1800" value="21:00"></label>
+              <label class="field"><span>球館</span><select id="session-venue"></select></label>
+              <label class="field"><span>場地面數</span><input id="group-session-courts" type="number" min="1"></label>
+              <label class="field"><span>報到／場地編號</span><input id="group-session-court-note" placeholder="例如：7 號場地報到"></label>
+              <label class="field"><span>人數上限</span><input id="group-session-capacity" type="number" min="1"></label>
+            </div>
+            <div class="session-subsection">
+              <h3>程度</h3>
+              <div class="form-grid form-grid--level">
+                <label class="field"><span>最低級數</span><select><option>4 級</option><option>歡樂</option><option>初階</option></select></label>
+                <label class="field"><span>最高級數</span><select><option>9 級</option><option>中階</option><option>中高階</option></select></label>
+                <label class="field field--wide"><span>程度補充</span><input id="group-session-level" placeholder="例如：歡樂～中階；新手友善"></label>
+              </div>
+            </div>
+            <div class="session-subsection">
+              <h3>收費</h3>
+              <div class="price-editor"><div><span>一般</span><b>2.5 小時</b><strong>$250</strong></div><div><span>男性</span><b>2 小時</b><strong>$230</strong></div><div><span>女性</span><b>2 小時</b><strong>$230</strong></div><button type="button" data-demo-toast="可增加不同時數、性別或身分的價格">＋ 價格</button></div>
+            </div>
+          </div>
+          <button class="secondary-action" type="button" data-demo-toast="將新增另一個包含程度與收費的每週固定場次">＋ 新增另一個每週場次</button>
+        </section>
+        <section class="form-section">
+          <div class="form-section__title"><span>03</span><div><h2>現場資訊與報名規則</h2><p>讓球友報名前就知道球種、設施、上場方式與取消規定。</p></div></div>
+          <div class="form-grid">
+            <label class="field field--wide"><span>使用球種（可輸入多種）</span><input id="group-ball-input"></label>
+            <label class="field"><span>上場方式</span><select><option>自由排點</option><option>排磁鐵</option><option>程度分級輪替</option><option>團主安排</option></select></label>
+            <fieldset class="facility-field field--wide"><legend>場館設施</legend><label><input type="checkbox" checked> 免費停車</label><label><input type="checkbox" checked> 飲水機</label><label><input type="checkbox" checked> 淋浴間</label></fieldset>
+            <label class="field field--wide"><span>報名方式</span><textarea>請回覆參加時間、暱稱及級數；報名時請 tag 聯絡人。</textarea></label>
+            <label class="field field--wide"><span>取消規則</span><textarea>臨時無法參加，請最晚於活動前三小時取消。</textarea></label>
+            <label class="field field--wide"><span>備註／限制</span><textarea>禁止勝負魔人；依實際報名人數增減場地。</textarea></label>
+          </div>
+        </section>
+        <div class="group-editor-dialog__actions"><button type="button" class="secondary-action" id="group-editor-cancel">取消</button><button type="submit" class="primary-action">儲存固定團</button></div>
+      </form>
+      </dialog>
+    </section>
+
+    <section class="view" id="view-venues" aria-label="球館維護列表">
+      <div class="venue-toolbar">
+        <label class="search-field"><span aria-hidden="true">⌕</span><input id="venue-search" type="search" placeholder="搜尋球館或地址" autocomplete="off"></label>
+        <label><span class="sr-only">行政區</span><select id="district-filter"><option value="all">所有行政區</option></select></label>
+        <label><span class="sr-only">狀態</span><select id="venue-status-filter"><option value="all">全部狀態</option><option value="active">啟用</option><option value="disabled">停用</option><option value="hidden">隱藏</option></select></label>
+        <span class="venue-count">共 <b id="venue-count">0</b> 間</span>
+        <button class="primary-action" id="new-venue-button" type="button">＋ 新增球館</button>
+      </div>
+      <div class="venue-grid" id="venue-grid"></div>
+      <div class="empty-state" id="venue-empty" hidden><b>找不到符合的球館</b><span>請更換名稱或行政區。</span></div>
+      <dialog class="group-editor-dialog venue-editor-dialog" id="venue-editor-dialog" aria-labelledby="venue-editor-title">
+        <div class="group-editor-dialog__head"><div><span class="tag tag--mint" id="venue-editor-mode">修改</span><h2 id="venue-editor-title">修改球館</h2></div><button type="button" id="venue-editor-close" aria-label="關閉球館維護視窗">×</button></div>
+        <form class="venue-editor-form" id="venue-editor-form">
+          <div class="form-grid">
+            <label class="field field--wide"><span>球館名稱</span><input id="venue-name-input" required></label>
+            <label class="field"><span>縣市</span><input id="venue-city-input" value="臺中市" required></label>
+            <label class="field"><span>行政區</span><input id="venue-district-input" list="venue-district-list" required></label>
+            <label class="field field--wide"><span>完整地址</span><input id="venue-address-input" required></label>
+            <label class="field"><span>場館類型</span><select id="venue-type-input"><option value="民營">民營</option><option value="公營">公營</option><option value="學校">學校</option><option value="其他">其他</option></select></label>
+            <label class="field"><span>狀態</span><select id="venue-status-input"><option value="active">啟用</option><option value="disabled">停用</option><option value="hidden">隱藏</option></select></label>
+            <label class="field"><span>停車位數</span><input id="venue-parking-input" type="number" min="0" placeholder="尚未確認可留空"></label>
+            <label class="field field--wide"><span>Google 地圖網址</span><input id="venue-map-input" type="url" placeholder="留空時依球館名稱及地址搜尋"></label>
+          </div>
+          <datalist id="venue-district-list"></datalist>
+          <div class="group-editor-dialog__actions"><button type="button" class="secondary-action" id="venue-editor-cancel">取消</button><button type="submit" class="primary-action">儲存球館</button></div>
+        </form>
+      </dialog>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog class="activity-dialog" id="activity-dialog" aria-labelledby="activity-dialog-title">
+    <div class="activity-dialog__head"><div><span class="tag tag--mint" id="activity-dialog-weekday"></span><h2 id="activity-dialog-title"></h2></div><button type="button" id="activity-dialog-close" aria-label="關閉活動內容">×</button></div>
+    <div class="activity-dialog__summary" id="activity-dialog-summary"></div>
+    <dl class="activity-dialog__details" id="activity-dialog-details"></dl>
+  </dialog>
+  <template id="activity-template"><article class="activity-card"><div class="date-block"><strong class="activity-day"></strong><span class="activity-weekday"></span></div><div class="activity-body"><div class="activity-top"><div class="tag-row"></div><span class="spots"></span></div><h2 class="activity-name"></h2><p class="activity-venue"></p><div class="activity-info"><span class="activity-time"></span><span class="activity-courts"></span><span class="activity-ball"></span></div><p class="activity-note"></p><div class="price-row"></div><div class="activity-footer"><span class="activity-contact"></span><button class="join-button" type="button">查看活動</button></div></div></article></template>
+  <script type="module" src="/app.js?v=15"></script>
+</body>
+</html>
