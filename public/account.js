@@ -1,32 +1,40 @@
 export const roles = Object.freeze({
+  guest: Object.freeze({
+    label: "訪客",
+    description: "只能瀏覽整週活動",
+    permissions: Object.freeze(["week:view"]),
+  }),
   admin: Object.freeze({
-    label: "管理員",
-    description: "最高權限",
+    label: "系統管理員",
+    description: "可查看及維護全部資料",
     permissions: Object.freeze(["*"]),
   }),
-  organizer: Object.freeze({
-    label: "揪團管理員",
-    description: "可維護固定團與活動",
-    permissions: Object.freeze(["groups:manage", "activities:manage", "activities:join"]),
-  }),
-  user: Object.freeze({
-    label: "一般使用者",
-    description: "可查看及參加活動",
-    permissions: Object.freeze(["activities:join"]),
-  }),
 });
 
-export const currentAccount = Object.freeze({
-  username: "0000",
-  displayName: "系統管理員",
-  role: "admin",
-});
-
-export function getCurrentUser() {
+export function createGuestUser() {
   return Object.freeze({
-    ...currentAccount,
-    roleLabel: roles[currentAccount.role].label,
-    roleDescription: roles[currentAccount.role].description,
-    permissions: roles[currentAccount.role].permissions,
+    username: "guest",
+    displayName: "訪客",
+    role: "guest",
+    roleLabel: roles.guest.label,
+    roleDescription: roles.guest.description,
+    permissions: roles.guest.permissions,
   });
+}
+
+export function createSessionUser(account) {
+  const role = roles[account?.role] ? account.role : "guest";
+  const profile = roles[role];
+  return Object.freeze({
+    username: account?.username || "guest",
+    displayName: account?.displayName || profile.label,
+    role,
+    roleLabel: profile.label,
+    roleDescription: profile.description,
+    permissions: profile.permissions,
+  });
+}
+
+export function canAccessView(user, viewName) {
+  return user?.role === "admin" || viewName === "week";
 }

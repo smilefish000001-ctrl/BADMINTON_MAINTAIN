@@ -7,29 +7,29 @@
   <meta name="description" content="快速查看、篩選並參加一週羽球揪團活動。">
   <title>羽球揪團表</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=17">
+  <link rel="stylesheet" href="/styles.css?v=23">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#activities" aria-label="羽球揪團表首頁">
+    <a class="brand" href="#week" aria-label="羽球揪團表首頁">
       <span class="brand__mark" aria-hidden="true">羽</span>
-      <span><b>羽球揪團表</b><small>找球友，隨時開打</small></span>
+      <span><b>羽球揪團表</b><small>找球友，隨時開打 · <span id="app-version">V1.1.0</span></small></span>
     </a>
     <button class="profile" id="current-profile" type="button" aria-label="目前登入帳號">
-      <span class="avatar" id="current-user-avatar">管</span>
-      <span class="profile__text"><b id="current-user-name">系統管理員</b><small id="current-user-role">管理員</small></span>
+      <span class="avatar" id="current-user-avatar">訪</span>
+      <span class="profile__text"><b id="current-user-name">訪客</b><small id="current-user-role">點此登入</small></span>
       <span aria-hidden="true">⌄</span>
     </button>
   </header>
   <nav class="nav" aria-label="主要導覽">
-    <button class="nav__item is-active" type="button" data-view="activities">活動總覽</button>
-    <button class="nav__item" type="button" data-view="week">整週活動</button>
-    <button class="nav__item" type="button" data-view="groups">開團設定</button>
-    <button class="nav__item" type="button" data-view="venues">球館維護</button>
+    <button class="nav__item" type="button" data-view="activities" data-admin-only hidden>活動總覽</button>
+    <button class="nav__item is-active" type="button" data-view="week">整週活動</button>
+    <button class="nav__item" type="button" data-view="groups" data-admin-only hidden>開團設定</button>
+    <button class="nav__item" type="button" data-view="venues" data-admin-only hidden>球館維護</button>
   </nav>
 
   <main>
-    <section class="view is-visible" id="view-activities" aria-labelledby="activities-title">
+    <section class="view" id="view-activities" aria-labelledby="activities-title" data-admin-only>
       <div class="page-heading">
         <div>
           <p class="kicker">SEP 21 — SEP 27</p>
@@ -51,18 +51,26 @@
       <div class="empty-state" id="empty-state" hidden><b>沒有符合的場次</b><span>換個地區或程度看看。</span></div>
     </section>
 
-    <section class="view" id="view-week" aria-label="整週活動">
-      <div class="week-toolbar"><label class="compact-select">行政區 <select id="week-district-filter"><option value="all">全部行政區</option></select></label><label class="compact-select">球館 <select id="week-venue-filter"><option value="all">全部球館</option></select></label></div>
+    <section class="view is-visible" id="view-week" aria-label="整週活動">
+      <div class="week-toolbar">
+        <label class="compact-select">行政區 <select id="week-district-filter"><option value="all">全部行政區</option></select></label>
+        <details class="multi-filter" id="week-venue-filter"><summary><span>球館</span><b id="week-venue-filter-summary">全部球館</b></summary><div class="multi-filter__panel"><div class="multi-filter__options" id="week-venue-options"></div><button type="button" data-clear-multi="venue">清除選取</button></div></details>
+        <label class="compact-select">球館狀態 <select id="week-venue-status-filter"><option value="all">全部</option><option value="active">啟用</option><option value="disabled">停用</option></select></label>
+        <details class="multi-filter" id="week-group-filter"><summary><span>球隊</span><b id="week-group-filter-summary">全部球隊</b></summary><div class="multi-filter__panel"><div class="multi-filter__options" id="week-group-options"></div><button type="button" data-clear-multi="group">清除選取</button></div></details>
+        <label class="compact-select">球隊狀態 <select id="week-group-status-filter"><option value="all">全部</option><option value="active">正常</option><option value="disabled">停用</option></select></label>
+        <label class="favorite-filter" id="week-favorite-filter" data-admin-only hidden><input id="week-favorites-only" type="checkbox"><span>只看我的最愛</span></label>
+        <label class="compact-select week-color-mode">卡片顏色 <select id="week-color-mode"><option value="none">請選擇</option><option value="group">依揪團</option><option value="venue">依球館</option></select></label>
+      </div>
       <div class="week-board" id="week-board"></div>
     </section>
 
-    <section class="view" id="view-groups" aria-label="固定開團設定">
+    <section class="view" id="view-groups" aria-label="固定開團設定" data-admin-only>
       <section class="group-directory" aria-label="固定開團列表">
         <div class="group-directory__filters">
           <label class="search-field"><span aria-hidden="true">⌕</span><input id="group-search" type="search" placeholder="搜尋團名、球館或聯絡人" autocomplete="off"></label>
           <label><span class="sr-only">星期</span><select id="group-weekday-filter"><option value="all">整週</option><option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option><option value="4">星期四</option><option value="5">星期五</option><option value="6">星期六</option><option value="0">星期日</option></select></label>
           <label><span class="sr-only">行政區</span><select id="group-district-filter"><option value="all">全部行政區</option></select></label>
-          <label><span class="sr-only">狀態</span><select id="group-status-filter"><option value="all">全部狀態</option><option value="active">正常</option><option value="disabled">停用</option><option value="hidden">隱藏</option></select></label>
+          <label><span class="sr-only">狀態</span><select id="group-status-filter"><option value="all">全部狀態</option><option value="active">正常</option><option value="disabled">停用</option></select></label>
           <label><span class="sr-only">排序</span><select id="group-sort"><option value="weekday">依星期時間</option><option value="name">依團名</option><option value="venue">依球館</option><option value="updated">依資料來源</option></select></label>
           <span class="group-directory__count">共 <b id="group-count">0</b> 團／<b id="session-count">0</b> 場</span>
           <button class="primary-action" id="new-group-button" type="button">＋ 新增固定團</button>
@@ -78,7 +86,9 @@
           <div class="form-grid">
             <label class="field field--wide"><span>球團／活動名稱</span><input id="group-name-input" required></label>
             <label class="field"><span>聯絡人</span><input id="group-contact-input"></label>
-            <label class="field"><span>狀態</span><select id="group-status-input"><option value="active">正常</option><option value="disabled">停用</option><option value="hidden">隱藏</option></select></label>
+            <label class="field"><span>狀態</span><select id="group-status-input"><option value="active">正常</option><option value="disabled">停用</option></select></label>
+            <label class="field favorite-field"><span>我的最愛</span><span class="favorite-check"><input id="group-favorite-input" type="checkbox"> 加入我的最愛</span><small>整週活動可只顯示最愛球隊或球館</small></label>
+            <label class="field color-field"><span>揪團代表色</span><input id="group-color-input" type="color" value="#2563eb"><small>套用在整週活動的揪團配色</small></label>
             <label class="field field--wide"><span>LINE 群組連結或 ID</span><input id="group-line-input" placeholder="https://line.me/ti/g/... 或 LINE ID"></label>
           </div>
         </section>
@@ -126,11 +136,11 @@
       </dialog>
     </section>
 
-    <section class="view" id="view-venues" aria-label="球館維護列表">
+    <section class="view" id="view-venues" aria-label="球館維護列表" data-admin-only>
       <div class="venue-toolbar">
         <label class="search-field"><span aria-hidden="true">⌕</span><input id="venue-search" type="search" placeholder="搜尋球館或地址" autocomplete="off"></label>
         <label><span class="sr-only">行政區</span><select id="district-filter"><option value="all">所有行政區</option></select></label>
-        <label><span class="sr-only">狀態</span><select id="venue-status-filter"><option value="all">全部狀態</option><option value="active">啟用</option><option value="disabled">停用</option><option value="hidden">隱藏</option></select></label>
+        <label><span class="sr-only">狀態</span><select id="venue-status-filter"><option value="all">全部狀態</option><option value="active">啟用</option><option value="disabled">停用</option></select></label>
         <span class="venue-count">共 <b id="venue-count">0</b> 間</span>
         <button class="primary-action" id="new-venue-button" type="button">＋ 新增球館</button>
       </div>
@@ -145,7 +155,9 @@
             <label class="field"><span>行政區</span><input id="venue-district-input" list="venue-district-list" required></label>
             <label class="field field--wide"><span>完整地址</span><input id="venue-address-input" required></label>
             <label class="field"><span>場館類型</span><select id="venue-type-input"><option value="民營">民營</option><option value="公營">公營</option><option value="學校">學校</option><option value="其他">其他</option></select></label>
-            <label class="field"><span>狀態</span><select id="venue-status-input"><option value="active">啟用</option><option value="disabled">停用</option><option value="hidden">隱藏</option></select></label>
+            <label class="field"><span>狀態</span><select id="venue-status-input"><option value="active">啟用</option><option value="disabled">停用</option></select></label>
+            <label class="field favorite-field"><span>我的最愛</span><span class="favorite-check"><input id="venue-favorite-input" type="checkbox"> 加入我的最愛</span><small>整週活動可只顯示最愛球隊或球館</small></label>
+            <label class="field color-field"><span>球館代表色</span><input id="venue-color-input" type="color" value="#0f766e"><small>套用在整週活動的球館配色</small></label>
             <label class="field"><span>停車位數</span><input id="venue-parking-input" type="number" min="0" placeholder="尚未確認可留空"></label>
             <label class="field field--wide"><span>Google 地圖網址</span><input id="venue-map-input" type="url" placeholder="留空時依球館名稱及地址搜尋"></label>
           </div>
@@ -157,12 +169,26 @@
   </main>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog class="auth-dialog" id="auth-dialog" aria-labelledby="auth-dialog-title">
+    <div class="auth-dialog__head"><div><span class="tag tag--mint">帳號權限</span><h2 id="auth-dialog-title">系統管理員登入</h2></div><button type="button" id="auth-dialog-close" aria-label="關閉登入視窗">×</button></div>
+    <form class="auth-form" id="login-form">
+      <p>訪客只能瀏覽整週活動。請登入系統管理員帳號以查看及維護全部資料。</p>
+      <label class="field"><span>帳號</span><input id="login-username" name="username" autocomplete="username" required></label>
+      <label class="field"><span>密碼</span><input id="login-password" name="password" type="password" autocomplete="current-password" required></label>
+      <p class="auth-error" id="login-error" role="alert" hidden></p>
+      <button class="primary-action" type="submit">登入</button>
+    </form>
+    <div class="auth-account" id="auth-account" hidden>
+      <span class="auth-account__avatar">管</span><div><b>系統管理員</b><p>目前已登入，可查看及維護全部資料。</p></div>
+      <button class="secondary-action" id="logout-button" type="button">登出</button>
+    </div>
+  </dialog>
   <dialog class="activity-dialog" id="activity-dialog" aria-labelledby="activity-dialog-title">
     <div class="activity-dialog__head"><div><span class="tag tag--mint" id="activity-dialog-weekday"></span><h2 id="activity-dialog-title"></h2></div><button type="button" id="activity-dialog-close" aria-label="關閉活動內容">×</button></div>
     <div class="activity-dialog__summary" id="activity-dialog-summary"></div>
     <dl class="activity-dialog__details" id="activity-dialog-details"></dl>
   </dialog>
   <template id="activity-template"><article class="activity-card"><div class="date-block"><strong class="activity-day"></strong><span class="activity-weekday"></span></div><div class="activity-body"><div class="activity-top"><div class="tag-row"></div><span class="spots"></span></div><h2 class="activity-name"></h2><p class="activity-venue"></p><div class="activity-info"><span class="activity-time"></span><span class="activity-courts"></span><span class="activity-ball"></span></div><p class="activity-note"></p><div class="price-row"></div><div class="activity-footer"><span class="activity-contact"></span><button class="join-button" type="button">查看活動</button></div></div></article></template>
-  <script type="module" src="/app.js?v=16"></script>
+  <script type="module" src="/app.js?v=26"></script>
 </body>
 </html>

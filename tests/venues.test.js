@@ -20,7 +20,8 @@ test("亞伯林羽球館振興店已加入東區球館資料", () => {
 });
 
 test("所有球館都有可辨識的狀態", () => {
-  const validStatuses = new Set(["active", "disabled", "hidden"]);
+  const validStatuses = new Set(["active", "disabled"]);
 
   assert.ok(venues.every((venue) => validStatuses.has(venue.status)));
+  assert.ok(venues.every((venue) => typeof venue.favorite === "boolean"));
 });

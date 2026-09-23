@@ -1,9 +1,60 @@
 import { venues } from "./venues.js";
 import { recurringGroups, recurringSessions, weekdayLabels } from "./groups.js";
-import { getCurrentUser } from "./account.js";
+import { canAccessView, createGuestUser, createSessionUser } from "./account.js";
 import { getUpcomingWeekDays } from "./week-dates.js";
+import { matchesWeekEntityFilters } from "./week-filters.js";
 
 const venueStorageKey = "badminton-venue-directory-v1";
+const groupColorStorageKey = "badminton-group-colors-v1";
+const groupFavoriteStorageKey = "badminton-group-favorites-v1";
+const weekColorModeStorageKey = "badminton-week-color-mode-v2";
+function normalizeColor(color, fallback) {
+  return /^#[0-9a-f]{6}$/i.test(color || "") ? color.toLowerCase() : fallback;
+}
+
+function colorTint(color, opacity = 0.11) {
+  const value = normalizeColor(color, "#076b59").slice(1);
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
+}
+
+function colorAt(index) {
+  const hue = (210 + index * 137.508) % 360;
+  const saturation = 62 + (index % 3) * 5;
+  const lightness = 36 + (index % 2) * 5;
+  const chroma = (1 - Math.abs(2 * lightness / 100 - 1)) * saturation / 100;
+  const section = hue / 60;
+  const intermediate = chroma * (1 - Math.abs(section % 2 - 1));
+  const [redPart, greenPart, bluePart] = section < 1 ? [chroma, intermediate, 0]
+    : section < 2 ? [intermediate, chroma, 0]
+      : section < 3 ? [0, chroma, intermediate]
+        : section < 4 ? [0, intermediate, chroma]
+          : section < 5 ? [intermediate, 0, chroma]
+            : [chroma, 0, intermediate];
+  const match = lightness / 100 - chroma / 2;
+  return `#${[redPart, greenPart, bluePart].map((part) => Math.round((part + match) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
+
+const colorClassCache = new Map();
+function colorClass(scope, key, color) {
+  const identity = `${scope}:${key}`;
+  let hash = 2166136261;
+  for (const character of identity) {
+    hash ^= character.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  const className = `entity-color-${scope}-${(hash >>> 0).toString(36)}`;
+  const normalized = normalizeColor(color, "#64748b");
+  if (colorClassCache.get(className) === normalized) return className;
+
+  const styleSheet = [...document.styleSheets].find((sheet) => sheet.href?.includes("/styles.css"));
+  if (!styleSheet) return className;
+  styleSheet.insertRule(`.${className}{--entity-color:${normalized};--entity-tint:${colorTint(normalized, 0.2)};--entity-border:${colorTint(normalized, 0.42)}}`, styleSheet.cssRules.length);
+  colorClassCache.set(className, normalized);
+  return className;
+}
 try {
   const storedVenues = JSON.parse(localStorage.getItem(venueStorageKey) || "null");
   if (Array.isArray(storedVenues) && storedVenues.every((venue) => venue.id && venue.name && venue.address)) {
@@ -13,6 +64,33 @@ try {
   }
 } catch {
   localStorage.removeItem(venueStorageKey);
+}
+
+venues.forEach((venue, index) => {
+  venue.status = venue.status === "disabled" || venue.status === "hidden" ? "disabled" : "active";
+  venue.favorite = venue.favorite === true;
+  venue.color = normalizeColor(venue.color, colorAt(index + 3));
+});
+recurringGroups.forEach((group, index) => {
+  group.status = group.status === "disabled" || group.status === "hidden" ? "disabled" : "active";
+  group.favorite = group.favorite === true;
+  group.color = normalizeColor(group.color, colorAt(index));
+});
+try {
+  const storedGroupColors = JSON.parse(localStorage.getItem(groupColorStorageKey) || "{}");
+  recurringGroups.forEach((group) => {
+    group.color = normalizeColor(storedGroupColors[group.id], group.color);
+  });
+} catch {
+  localStorage.removeItem(groupColorStorageKey);
+}
+try {
+  const storedGroupFavorites = JSON.parse(localStorage.getItem(groupFavoriteStorageKey) || "{}");
+  recurringGroups.forEach((group) => {
+    group.favorite = storedGroupFavorites[group.id] === true;
+  });
+} catch {
+  localStorage.removeItem(groupFavoriteStorageKey);
 }
 
 let weekDays = getUpcomingWeekDays();
@@ -60,7 +138,14 @@ const venueStatusFilter = document.querySelector("#venue-status-filter");
 const venueCount = document.querySelector("#venue-count");
 const venueEmpty = document.querySelector("#venue-empty");
 const weekDistrictFilter = document.querySelector("#week-district-filter");
-const weekVenueFilter = document.querySelector("#week-venue-filter");
+const weekVenueOptions = document.querySelector("#week-venue-options");
+const weekGroupOptions = document.querySelector("#week-group-options");
+const weekVenueFilterSummary = document.querySelector("#week-venue-filter-summary");
+const weekGroupFilterSummary = document.querySelector("#week-group-filter-summary");
+const weekVenueStatusFilter = document.querySelector("#week-venue-status-filter");
+const weekGroupStatusFilter = document.querySelector("#week-group-status-filter");
+const weekFavoritesOnly = document.querySelector("#week-favorites-only");
+const weekColorMode = document.querySelector("#week-color-mode");
 const groupSearch = document.querySelector("#group-search");
 const groupWeekdayFilter = document.querySelector("#group-weekday-filter");
 const groupDistrictFilter = document.querySelector("#group-district-filter");
@@ -80,16 +165,69 @@ const groupForm = document.querySelector("#group-form");
 const venueEditorDialog = document.querySelector("#venue-editor-dialog");
 const venueEditorForm = document.querySelector("#venue-editor-form");
 const currentProfile = document.querySelector("#current-profile");
+const appVersion = document.querySelector("#app-version");
+const authDialog = document.querySelector("#auth-dialog");
+const loginForm = document.querySelector("#login-form");
+const loginError = document.querySelector("#login-error");
+const authAccount = document.querySelector("#auth-account");
+let currentUser = createGuestUser();
 let editingGroupId = null;
 let editingVenueId = null;
 
 function renderCurrentUser() {
-  const user = getCurrentUser();
-  document.querySelector("#current-user-avatar").textContent = user.roleLabel.slice(0, 1);
-  document.querySelector("#current-user-name").textContent = user.displayName;
-  document.querySelector("#current-user-role").textContent = user.roleLabel;
-  currentProfile.setAttribute("aria-label", `目前登入帳號 ${user.username}，${user.roleLabel}，${user.roleDescription}`);
-  currentProfile.addEventListener("click", () => showToast(`帳號 ${user.username}｜${user.roleLabel}（${user.roleDescription}）`));
+  const isAdmin = currentUser.role === "admin";
+  document.querySelector("#current-user-avatar").textContent = isAdmin ? "管" : "訪";
+  document.querySelector("#current-user-name").textContent = currentUser.displayName;
+  document.querySelector("#current-user-role").textContent = isAdmin ? currentUser.roleLabel : "點此登入";
+  currentProfile.setAttribute("aria-label", isAdmin
+    ? `目前登入帳號 ${currentUser.username}，${currentUser.roleLabel}，點選查看帳號或登出`
+    : "目前為訪客模式，點選登入系統管理員帳號");
+  document.querySelectorAll("[data-admin-only]").forEach((element) => {
+    element.hidden = !isAdmin;
+  });
+  if (!isAdmin && weekFavoritesOnly.checked) {
+    weekFavoritesOnly.checked = false;
+    refreshWeekMultiFilters();
+    renderWeek();
+  }
+}
+
+function openAuthDialog() {
+  const isAdmin = currentUser.role === "admin";
+  loginForm.hidden = isAdmin;
+  authAccount.hidden = !isAdmin;
+  document.querySelector("#auth-dialog-title").textContent = isAdmin ? "帳號資訊" : "系統管理員登入";
+  loginError.hidden = true;
+  if (!isAdmin) loginForm.reset();
+  authDialog.showModal();
+}
+
+function requireAdmin() {
+  if (currentUser.role === "admin") return true;
+  openView("week");
+  openAuthDialog();
+  return false;
+}
+
+async function refreshSession() {
+  try {
+    const response = await fetch("/api/session", { headers: { Accept: "application/json" } });
+    const result = await response.json();
+    currentUser = result.authenticated ? createSessionUser(result.user) : createGuestUser();
+  } catch {
+    currentUser = createGuestUser();
+  }
+  renderCurrentUser();
+}
+
+async function refreshVersionInfo() {
+  try {
+    const response = await fetch("/api/health", { headers: { Accept: "application/json" } });
+    const result = await response.json();
+    if (response.ok && result.version) appVersion.textContent = `V${result.version}`;
+  } catch {
+    // 保留 HTML 中的版本備援資訊。
+  }
 }
 
 function escapeHtml(value) {
@@ -100,7 +238,6 @@ function escapeHtml(value) {
 
 function getActivityAvailability(activity) {
   const venue = venues.find((item) => item.name === activity.venue);
-  if (activity.status === "hidden" || venue?.status === "hidden") return { status: "hidden", reason: "隱藏" };
   if (activity.status === "disabled") return { status: "disabled", reason: "活動停用" };
   if (venue?.status === "disabled") return { status: "disabled", reason: "球館停用" };
   return { status: "active", reason: "" };
@@ -124,13 +261,73 @@ function matchesLevel(level, selected) {
   return selected === "all" || level === selected;
 }
 
+function getActivityEntity(activity) {
+  if (weekColorMode.value === "venue") {
+    const venue = venues.find((item) => item.name === activity.venue);
+    return { key: venue?.id || activity.venue, label: activity.venue, color: normalizeColor(venue?.color, "#64748b") };
+  }
+  const group = recurringGroups.find((item) => item.id === activity.groupId);
+  return { key: group?.id || activity.groupId, label: activity.name, color: normalizeColor(group?.color, "#64748b") };
+}
+
+function saveGroupSettings() {
+  const colors = Object.fromEntries(recurringGroups.map((group) => [group.id, group.color]));
+  const favorites = Object.fromEntries(recurringGroups.map((group) => [group.id, group.favorite === true]));
+  localStorage.setItem(groupColorStorageKey, JSON.stringify(colors));
+  localStorage.setItem(groupFavoriteStorageKey, JSON.stringify(favorites));
+}
+
+function selectedMultiValues(container) {
+  return new Set([...container.querySelectorAll("input:checked")].map((input) => input.value));
+}
+
+function updateMultiFilterSummary(container, summary, allLabel, unit) {
+  const checked = [...container.querySelectorAll("input:checked")];
+  summary.textContent = checked.length === 0
+    ? allLabel
+    : checked.length === 1
+      ? checked[0].dataset.label
+      : `已選 ${checked.length} ${unit}`;
+}
+
+function replaceMultiOptions(container, items, kind) {
+  const selected = selectedMultiValues(container);
+  container.innerHTML = items.map((item) => `<label><input type="checkbox" value="${escapeHtml(item.value)}" data-label="${escapeHtml(item.label)}"${selected.has(item.value) ? " checked" : ""}><span>${escapeHtml(item.label)}</span></label>`).join("");
+  if (kind === "venue") updateMultiFilterSummary(container, weekVenueFilterSummary, "全部球館", "間");
+  else updateMultiFilterSummary(container, weekGroupFilterSummary, "全部球隊", "隊");
+}
+
+function refreshWeekMultiFilters() {
+  const district = weekDistrictFilter.value;
+  const available = activities.filter((activity) => {
+    const group = recurringGroups.find((item) => item.id === activity.groupId);
+    const venue = venues.find((item) => item.name === activity.venue);
+    return (district === "all" || activity.district === district)
+      && matchesWeekEntityFilters({
+        group,
+        venue,
+        groupStatus: weekGroupStatusFilter.value,
+        venueStatus: weekVenueStatusFilter.value,
+        favoritesOnly: weekFavoritesOnly.checked,
+        isAdmin: currentUser.role === "admin",
+      });
+  });
+  const venueItems = [...new Set(available.map((activity) => activity.venue))]
+    .sort((a, b) => a.localeCompare(b, "zh-Hant"))
+    .map((venue) => ({ value: venue, label: venue }));
+  const groupItems = [...new Map(available.map((activity) => [activity.groupId, activity.name])).entries()]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, "zh-Hant"));
+  replaceMultiOptions(weekVenueOptions, venueItems, "venue");
+  replaceMultiOptions(weekGroupOptions, groupItems, "group");
+}
+
 function renderActivities() {
   refreshWeekDates();
   const query = searchInput.value.trim().toLowerCase();
   const visible = activities.filter((activity) => {
     const haystack = `${activity.name} ${activity.venue} ${activity.district} ${activity.contact} ${activity.ball}`.toLowerCase();
-    return getActivityAvailability(activity).status !== "hidden"
-      && (!query || haystack.includes(query))
+    return (!query || haystack.includes(query))
       && (districtActivityFilter.value === "all" || activity.district === districtActivityFilter.value)
       && (weekdayFilter.value === "all" || activity.isoDay === Number(weekdayFilter.value))
       && matchesLevel(activity.level, levelFilter.value);
@@ -168,10 +365,23 @@ function renderActivities() {
 function renderWeek() {
   refreshWeekDates();
   const district = weekDistrictFilter.value;
-  const venue = weekVenueFilter.value;
-  const visible = activities.filter((activity) => getActivityAvailability(activity).status !== "hidden"
-    && (district === "all" || activity.district === district)
-    && (venue === "all" || activity.venue === venue));
+  const selectedVenues = selectedMultiValues(weekVenueOptions);
+  const selectedGroups = selectedMultiValues(weekGroupOptions);
+  const visible = activities.filter((activity) => {
+    const group = recurringGroups.find((item) => item.id === activity.groupId);
+    const venue = venues.find((item) => item.name === activity.venue);
+    return (district === "all" || activity.district === district)
+      && (selectedVenues.size === 0 || selectedVenues.has(activity.venue))
+      && (selectedGroups.size === 0 || selectedGroups.has(activity.groupId))
+      && matchesWeekEntityFilters({
+        group,
+        venue,
+        groupStatus: weekGroupStatusFilter.value,
+        venueStatus: weekVenueStatusFilter.value,
+        favoritesOnly: weekFavoritesOnly.checked,
+        isAdmin: currentUser.role === "admin",
+      });
+  });
   const startTimes = [...new Set(visible.map((activity) => activity.start))].sort();
   const dayCounts = new Map(weekDays.map((day) => [day.key, visible.filter((activity) => activity.isoDay === day.key).length]));
   const header = `<div class="week-calendar__header"><div class="week-calendar__corner">時間</div>${weekDays.map((day) => `<div><span>週${day.label}</span><b>${day.date}</b><i>${dayCounts.get(day.key)} 場</i></div>`).join("")}</div>`;
@@ -180,7 +390,9 @@ function renderWeek() {
       const items = visible.filter((activity) => activity.isoDay === day.key && activity.start === startTime);
       const cards = items.map((item) => {
         const availability = getActivityAvailability(item);
-        return `<button class="week-slot-event${availability.status === "disabled" ? " week-slot-event--disabled" : ""}" type="button" data-activity-id="${escapeHtml(item.id)}" aria-label="查看 ${escapeHtml(item.name)} 完整內容"><time>${escapeHtml(item.start)}–${escapeHtml(item.end)}</time><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.venue)}</span><em>${escapeHtml(availability.reason || item.price[0] || "洽團主")}</em></button>`;
+        const entity = weekColorMode.value === "none" ? null : getActivityEntity(item);
+        const entityClass = availability.status === "disabled" || !entity ? "" : ` ${colorClass(weekColorMode.value, entity.key, entity.color)}`;
+        return `<button class="week-slot-event${availability.status === "disabled" ? " week-slot-event--disabled" : ""}${entityClass}" type="button" data-activity-id="${escapeHtml(item.id)}" aria-label="查看 ${escapeHtml(item.name)} 完整內容"><time>${escapeHtml(item.start)}–${escapeHtml(item.end)}</time><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.venue)}</span><em>${escapeHtml(availability.reason || item.price[0] || "洽團主")}</em></button>`;
       }).join("");
       return `<div class="week-time-cell">${cards}</div>`;
     }).join("");
@@ -250,11 +462,11 @@ function renderGroups() {
         <div><b>週${weekdayLabels[session.weekday]} ${session.start}–${session.end}</b><span>${escapeHtml(session.venue)} · ${escapeHtml(session.district)}</span></div>
         <div><span>${escapeHtml(session.level)}</span><strong>${escapeHtml(session.prices.join("／"))}</strong></div>
       </li>`).join("");
-    const statusLabels = { active: "正常", disabled: "停用", hidden: "隱藏" };
+    const statusLabels = { active: "正常", disabled: "停用" };
     const source = group.sourceUrl ? `<a href="${escapeHtml(group.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(group.source)} ↗</a>` : `<span>${escapeHtml(group.source)}</span>`;
-    return `<article class="group-record group-record--${escapeHtml(group.status)}">
-      <header><div><span class="state state--${escapeHtml(group.status)}">${statusLabels[group.status]}</span><span class="group-record__id">${escapeHtml(group.id)}</span></div><span>${group.sessions.length} 個固定場次</span></header>
-      <h2>${escapeHtml(group.name)}</h2>
+    return `<article class="group-record group-record--${escapeHtml(group.status)} ${colorClass("group", group.id, group.color)}">
+      <header><div><span class="state state--${escapeHtml(group.status)}">${statusLabels[group.status]}</span>${group.favorite ? '<span class="favorite-badge">★ 我的最愛</span>' : ""}<span class="group-record__id">${escapeHtml(group.id)}</span></div><span>${group.sessions.length} 個固定場次</span></header>
+      <h2><i class="entity-color-dot"></i>${escapeHtml(group.name)}</h2>
       <p>聯絡人 ${escapeHtml(group.contact)} · 用球 ${escapeHtml(group.ball)}</p>
       <ul>${sessions}</ul>
       <footer><span class="group-source">${source}</span><button type="button" data-group-id="${escapeHtml(group.id)}">修改</button></footer>
@@ -268,6 +480,7 @@ function renderGroups() {
 }
 
 function openGroupEditor(groupId = null) {
+  if (!requireAdmin()) return;
   editingGroupId = groupId;
   const group = recurringGroups.find((item) => item.id === groupId);
   const session = group?.sessions[0];
@@ -276,6 +489,8 @@ function openGroupEditor(groupId = null) {
   document.querySelector("#group-name-input").value = group?.name || "";
   document.querySelector("#group-contact-input").value = group?.contact || "";
   document.querySelector("#group-status-input").value = group?.status || "active";
+  document.querySelector("#group-favorite-input").checked = group?.favorite === true;
+  document.querySelector("#group-color-input").value = normalizeColor(group?.color, colorAt(recurringGroups.length));
   document.querySelector("#group-line-input").value = "";
   document.querySelector("#group-session-weekday").value = String(session?.weekday ?? 1);
   document.querySelector("#group-session-start").value = session?.start || "19:00";
@@ -307,6 +522,7 @@ function openGroupEditor(groupId = null) {
 
 function saveGroup(event) {
   event.preventDefault();
+  if (!requireAdmin()) return;
   const name = document.querySelector("#group-name-input").value.trim();
   if (!name) return;
   const venueSelect = document.querySelector("#session-venue");
@@ -330,7 +546,9 @@ function saveGroup(event) {
     name,
     contact: document.querySelector("#group-contact-input").value.trim() || "未提供",
     status: document.querySelector("#group-status-input").value,
+    favorite: document.querySelector("#group-favorite-input").checked,
     ball: document.querySelector("#group-ball-input").value.trim() || "未提供",
+    color: normalizeColor(document.querySelector("#group-color-input").value, colorAt(recurringGroups.length)),
   };
 
   if (editingGroupId) {
@@ -338,7 +556,7 @@ function saveGroup(event) {
     Object.assign(group, basic);
     Object.assign(group.sessions[0], session, { prices: group.sessions[0].prices });
     activities.filter((activity) => activity.groupId === group.id).forEach((activity) => Object.assign(activity, {
-      name: group.name, contact: group.contact, status: group.status, ball: group.ball,
+      name: group.name, contact: group.contact, status: group.status, favorite: group.favorite, ball: group.ball,
     }));
     const firstActivity = activities.find((activity) => activity.groupId === group.id);
     if (firstActivity) Object.assign(firstActivity, sessionToActivity({ ...firstActivity, ...group.sessions[0], name: group.name, contact: group.contact, status: group.status, ball: group.ball }));
@@ -348,7 +566,9 @@ function saveGroup(event) {
     recurringGroups.push(group);
     activities.push(sessionToActivity({ id: `${id}-${session.weekday}-${session.start.replace(":", "")}-1`, groupId: id, ...group, sessions: undefined, ...session }));
   }
+  saveGroupSettings();
   groupEditorDialog.close();
+  refreshWeekMultiFilters();
   renderGroups();
   renderActivities();
   renderWeek();
@@ -367,7 +587,7 @@ function renderVenues() {
   venueGrid.replaceChildren();
   filtered.forEach((venue) => {
     const article = document.createElement("article");
-    article.className = `venue-card venue-card--directory venue-card--${venue.status}`;
+    article.className = `venue-card venue-card--directory venue-card--${venue.status} ${colorClass("venue", venue.id, venue.color)}`;
     article.tabIndex = 0;
     article.setAttribute("role", "button");
     article.setAttribute("aria-label", `修改球館：${venue.name}`);
@@ -376,7 +596,7 @@ function renderVenues() {
     article.innerHTML = `
       <div class="venue-card__district"><span>${escapeHtml(venue.city)}</span><strong>${escapeHtml(venue.district)}</strong></div>
       <div class="venue-card__content">
-        <div class="venue-card__top"><div class="tag-row"><span class="tag ${venue.type === "公營" ? "tag--blue" : "tag--mint"}">${escapeHtml(venue.type)}</span><span class="state state--${escapeHtml(venue.status)}">${venue.status === "active" ? "啟用" : venue.status === "disabled" ? "停用" : "隱藏"}</span></div><span class="venue-id">${escapeHtml(venue.id)}</span></div>
+        <div class="venue-card__top"><div class="tag-row"><span class="tag ${venue.type === "公營" ? "tag--blue" : "tag--mint"}">${escapeHtml(venue.type)}</span><span class="state state--${escapeHtml(venue.status)}">${venue.status === "active" ? "啟用" : "停用"}</span>${venue.favorite ? '<span class="favorite-badge">★ 我的最愛</span>' : ""}</div><span class="venue-id">${escapeHtml(venue.id)}</span></div>
         <h2>${escapeHtml(venue.name)}</h2>
         <p>${escapeHtml(venue.address)}</p>
         <div class="venue-meta"><span>▣ ${escapeHtml(parkingText)}</span><a href="${escapeHtml(mapUrl)}" target="_blank" rel="noreferrer">Google 地圖 ↗</a></div>
@@ -398,6 +618,7 @@ function renderVenues() {
 }
 
 function openVenueEditor(venueId = null) {
+  if (!requireAdmin()) return;
   editingVenueId = venueId;
   const venue = venues.find((item) => item.id === venueId);
   document.querySelector("#venue-editor-mode").textContent = venue ? "修改" : "新增";
@@ -408,6 +629,8 @@ function openVenueEditor(venueId = null) {
   document.querySelector("#venue-address-input").value = venue?.address || "";
   document.querySelector("#venue-type-input").value = venue?.type || "民營";
   document.querySelector("#venue-status-input").value = venue?.status || "active";
+  document.querySelector("#venue-favorite-input").checked = venue?.favorite === true;
+  document.querySelector("#venue-color-input").value = normalizeColor(venue?.color, colorAt(venues.length + 3));
   document.querySelector("#venue-parking-input").value = venue?.parkingSpaces ?? "";
   document.querySelector("#venue-map-input").value = venue?.mapUrl || "";
   venueEditorDialog.showModal();
@@ -425,14 +648,13 @@ function refreshVenueDependentOptions() {
   replaceOptions(districtFilter, "所有行政區", venueDistricts);
   document.querySelector("#venue-district-list").innerHTML = venueDistricts.map((district) => `<option value="${escapeHtml(district)}"></option>`).join("");
 
-  const visibleActivities = activities.filter((activity) => getActivityAvailability(activity).status !== "hidden");
+  const visibleActivities = activities;
   const activityDistricts = [...new Set(visibleActivities.map((activity) => activity.district))].sort((a, b) => a.localeCompare(b, "zh-Hant"));
   replaceOptions(districtActivityFilter, "所有行政區", activityDistricts);
   replaceOptions(weekDistrictFilter, "全部行政區", activityDistricts);
   replaceOptions(groupDistrictFilter, "全部行政區", activityDistricts);
 
-  const activityVenues = [...new Set(visibleActivities.map((activity) => activity.venue))].sort((a, b) => a.localeCompare(b, "zh-Hant"));
-  replaceOptions(weekVenueFilter, "全部球館", activityVenues);
+  refreshWeekMultiFilters();
 
   const sessionVenue = document.querySelector("#session-venue");
   const selectedVenueId = sessionVenue.value;
@@ -443,6 +665,7 @@ function refreshVenueDependentOptions() {
 
 function saveVenue(event) {
   event.preventDefault();
+  if (!requireAdmin()) return;
   const name = document.querySelector("#venue-name-input").value.trim();
   const city = document.querySelector("#venue-city-input").value.trim();
   const district = document.querySelector("#venue-district-input").value.trim();
@@ -458,6 +681,8 @@ function saveVenue(event) {
     address,
     type: document.querySelector("#venue-type-input").value,
     status: document.querySelector("#venue-status-input").value,
+    favorite: document.querySelector("#venue-favorite-input").checked,
+    color: normalizeColor(document.querySelector("#venue-color-input").value, colorAt(venues.length + 3)),
     parkingSpaces: document.querySelector("#venue-parking-input").value === "" ? null : Number(document.querySelector("#venue-parking-input").value),
     mapUrl: document.querySelector("#venue-map-input").value.trim(),
   };
@@ -501,6 +726,9 @@ function appendOptions(select, values) {
 function initializeFilters() {
   refreshVenueDependentOptions();
 
+  const savedColorMode = localStorage.getItem(weekColorModeStorageKey);
+  weekColorMode.value = ["group", "venue"].includes(savedColorMode) ? savedColorMode : "none";
+
   const levels = [...new Set(activities.map((activity) => activity.level))].sort((a, b) => a.localeCompare(b, "zh-Hant"));
   appendOptions(levelFilter, levels);
 
@@ -512,19 +740,46 @@ function initializeFilters() {
   venueStatusFilter.addEventListener("input", renderVenues);
   [searchInput, districtActivityFilter, weekdayFilter, levelFilter].forEach((control) => control.addEventListener("input", renderActivities));
   weekDistrictFilter.addEventListener("input", () => {
-    const availableVenues = [...new Set(activities.filter((activity) => getActivityAvailability(activity).status !== "hidden" && (weekDistrictFilter.value === "all" || activity.district === weekDistrictFilter.value)).map((activity) => activity.venue))].sort((a, b) => a.localeCompare(b, "zh-Hant"));
-    const currentVenue = weekVenueFilter.value;
-    weekVenueFilter.innerHTML = `<option value="all">全部球館</option>`;
-    appendOptions(weekVenueFilter, availableVenues);
-    weekVenueFilter.value = availableVenues.includes(currentVenue) ? currentVenue : "all";
+    refreshWeekMultiFilters();
     renderWeek();
   });
-  weekVenueFilter.addEventListener("input", renderWeek);
+  [weekVenueStatusFilter, weekGroupStatusFilter, weekFavoritesOnly].forEach((control) => control.addEventListener("input", () => {
+    refreshWeekMultiFilters();
+    renderWeek();
+  }));
+  [weekVenueOptions, weekGroupOptions].forEach((container) => container.addEventListener("change", () => {
+    updateMultiFilterSummary(weekVenueOptions, weekVenueFilterSummary, "全部球館", "間");
+    updateMultiFilterSummary(weekGroupOptions, weekGroupFilterSummary, "全部球隊", "隊");
+    renderWeek();
+  }));
+  document.querySelectorAll("[data-clear-multi]").forEach((button) => button.addEventListener("click", () => {
+    const container = button.dataset.clearMulti === "venue" ? weekVenueOptions : weekGroupOptions;
+    container.querySelectorAll("input:checked").forEach((input) => { input.checked = false; });
+    updateMultiFilterSummary(weekVenueOptions, weekVenueFilterSummary, "全部球館", "間");
+    updateMultiFilterSummary(weekGroupOptions, weekGroupFilterSummary, "全部球隊", "隊");
+    renderWeek();
+  }));
+  const weekMultiFilters = [...document.querySelectorAll(".multi-filter")];
+  weekMultiFilters.forEach((filter) => filter.addEventListener("toggle", () => {
+    if (!filter.open) return;
+    weekMultiFilters.forEach((otherFilter) => {
+      if (otherFilter !== filter) otherFilter.open = false;
+    });
+  }));
+  document.addEventListener("pointerdown", (event) => {
+    if (event.target instanceof Element && event.target.closest(".multi-filter")) return;
+    weekMultiFilters.forEach((filter) => { filter.open = false; });
+  });
+  weekColorMode.addEventListener("input", () => {
+    localStorage.setItem(weekColorModeStorageKey, weekColorMode.value);
+    renderWeek();
+  });
   [groupSearch, groupWeekdayFilter, groupDistrictFilter, groupStatusFilter, groupSort].forEach((control) => control.addEventListener("input", renderGroups));
 }
 
 function openView(name) {
-  const validName = [...views].some((view) => view.id === `view-${name}`) ? name : "activities";
+  const requestedName = [...views].some((view) => view.id === `view-${name}`) ? name : "week";
+  const validName = canAccessView(currentUser, requestedName) ? requestedName : "week";
   views.forEach((view) => view.classList.toggle("is-visible", view.id === `view-${validName}`));
   navItems.forEach((item) => item.classList.toggle("is-active", item.dataset.view === validName));
   history.replaceState(null, "", `#${validName}`);
@@ -539,6 +794,54 @@ function showToast(message) {
 }
 
 navItems.forEach((item) => item.addEventListener("click", () => openView(item.dataset.view)));
+currentProfile.addEventListener("click", openAuthDialog);
+document.querySelector("#auth-dialog-close").addEventListener("click", () => authDialog.close());
+authDialog.addEventListener("click", (event) => {
+  if (event.target === authDialog) authDialog.close();
+});
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  loginError.hidden = true;
+  const submitButton = loginForm.querySelector("button[type=submit]");
+  submitButton.disabled = true;
+  try {
+    const response = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        username: document.querySelector("#login-username").value.trim(),
+        password: document.querySelector("#login-password").value,
+      }),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      loginError.textContent = result.error || "登入失敗";
+      loginError.hidden = false;
+      return;
+    }
+    currentUser = createSessionUser(result.user);
+    renderCurrentUser();
+    authDialog.close();
+    openView("activities");
+    showToast("系統管理員登入成功");
+  } catch {
+    loginError.textContent = "目前無法登入，請稍後再試";
+    loginError.hidden = false;
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+document.querySelector("#logout-button").addEventListener("click", async () => {
+  try {
+    await fetch("/api/logout", { method: "POST", headers: { Accept: "application/json" } });
+  } finally {
+    currentUser = createGuestUser();
+    renderCurrentUser();
+    authDialog.close();
+    openView("week");
+    showToast("已登出，目前為訪客模式");
+  }
+});
 document.querySelectorAll("[data-demo-toast]").forEach((button) => button.addEventListener("click", () => showToast(button.dataset.demoToast)));
 document.querySelector("#activity-dialog-close").addEventListener("click", () => activityDialog.close());
 activityDialog.addEventListener("click", (event) => {
@@ -559,10 +862,14 @@ venueEditorDialog.addEventListener("click", (event) => {
 });
 venueEditorForm.addEventListener("submit", saveVenue);
 
-initializeFilters();
-renderCurrentUser();
-renderActivities();
-renderWeek();
-renderGroups();
-renderVenues();
-openView(location.hash.slice(1) || "activities");
+async function bootstrap() {
+  initializeFilters();
+  renderActivities();
+  renderWeek();
+  renderGroups();
+  renderVenues();
+  await Promise.all([refreshSession(), refreshVersionInfo()]);
+  openView(location.hash.slice(1) || "week");
+}
+
+bootstrap();

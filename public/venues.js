@@ -69,6 +69,7 @@ export const venues = [
   city: "臺中市",
   parkingSpaces: null,
   status: "active",
+  favorite: false,
   importedAt: "2026-09-21",
   ...venue,
 }));

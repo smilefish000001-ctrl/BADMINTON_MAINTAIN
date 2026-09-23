@@ -13,6 +13,8 @@ function readPort(value) {
 
 export const config = Object.freeze({
   appName: process.env.APP_NAME?.trim() || "羽球活動表",
+  adminUsername: process.env.ADMIN_USERNAME?.trim() || "0000",
+  adminPassword: process.env.ADMIN_PASSWORD || "0000",
   env: process.env.NODE_ENV?.trim() || "development",
   host: process.env.HOST?.trim() || "0.0.0.0",
   port: readPort(process.env.PORT),
@@ -21,4 +23,3 @@ export const config = Object.freeze({
     ? path.resolve(process.env.DATA_DIR)
     : path.join(projectRoot, "data"),
 });
-

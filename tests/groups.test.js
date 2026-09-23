@@ -3,11 +3,12 @@ import test from "node:test";
 import { recurringGroups, recurringSessions } from "../public/groups.js";
 
 test("匯入的固定團皆有可辨識的核心欄位", () => {
-  assert.equal(recurringGroups.length, 51);
-  assert.equal(recurringSessions.length, 80);
+  assert.equal(recurringGroups.length, 54);
+  assert.equal(recurringSessions.length, 93);
 
   for (const group of recurringGroups) {
-    assert.ok(["active", "disabled", "hidden"].includes(group.status));
+    assert.ok(["active", "disabled"].includes(group.status));
+    assert.equal(typeof group.favorite, "boolean");
   }
 
   for (const session of recurringSessions) {
@@ -58,6 +59,21 @@ test("新聊天紀錄只匯入可明確辨識的固定團", () => {
     const group = recurringGroups.find((item) => item.name === name);
     assert.ok(group, `${name} 應已匯入`);
     assert.equal(group.sessions.length, sessionCount);
+  }
+});
+
+test("2026-09-23 聊天紀錄新增三組明確的固定團", () => {
+  const expected = new Map([
+    ["CMP 球隊", 1],
+    ["羽生聚來羽球隊", 10],
+    ["酪梨羽球", 2],
+  ]);
+
+  for (const [name, sessionCount] of expected) {
+    const group = recurringGroups.find((item) => item.name === name);
+    assert.ok(group, `${name} 應已匯入`);
+    assert.equal(group.sessions.length, sessionCount);
+    assert.equal(group.source, "使用者提供的 2026-09-23 揪團聊天紀錄");
   }
 });
 
