@@ -1,10 +1,12 @@
 import { venues } from "./venues.js";
-import { recurringGroups, recurringSessions, weekdayLabels } from "./groups.js";
+import { recurringGroups, weekdayLabels } from "./groups.js";
 import { canAccessView, createGuestUser, createSessionUser } from "./account.js";
 import { getUpcomingWeekDays } from "./week-dates.js";
 import { matchesWeekEntityFilters } from "./week-filters.js";
+import { mergeStoredGroups } from "./stored-data.js";
 
 const venueStorageKey = "badminton-venue-directory-v1";
+const groupStorageKey = "badminton-group-directory-v1";
 const groupColorStorageKey = "badminton-group-colors-v1";
 const groupFavoriteStorageKey = "badminton-group-favorites-v1";
 const weekColorModeStorageKey = "badminton-week-color-mode-v2";
@@ -65,6 +67,14 @@ try {
 } catch {
   localStorage.removeItem(venueStorageKey);
 }
+try {
+  const storedGroups = JSON.parse(localStorage.getItem(groupStorageKey) || "null");
+  if (Array.isArray(storedGroups) && storedGroups.every((group) => group.id && group.name && Array.isArray(group.sessions))) {
+    mergeStoredGroups(recurringGroups, storedGroups);
+  }
+} catch {
+  localStorage.removeItem(groupStorageKey);
+}
 
 venues.forEach((venue, index) => {
   venue.status = venue.status === "disabled" || venue.status === "hidden" ? "disabled" : "active";
@@ -108,7 +118,15 @@ function sessionToActivity(session) {
   note: [session.courtNote, session.playMethod, session.notes].filter(Boolean).join(" · "),
   };
 }
-const activities = recurringSessions.map(sessionToActivity);
+const activities = recurringGroups.flatMap((group) => {
+  const { sessions, ...groupFields } = group;
+  return sessions.map((session, index) => sessionToActivity({
+    ...groupFields,
+    ...session,
+    id: `${group.id}-${session.weekday}-${session.start.replace(":", "")}-${index + 1}`,
+    groupId: group.id,
+  }));
+});
 
 function refreshWeekDates() {
   const nextWeekDays = getUpcomingWeekDays();
@@ -162,6 +180,7 @@ const activityDialogSummary = document.querySelector("#activity-dialog-summary")
 const activityDialogDetails = document.querySelector("#activity-dialog-details");
 const groupEditorDialog = document.querySelector("#group-editor-dialog");
 const groupForm = document.querySelector("#group-form");
+const groupPriceEditor = document.querySelector("#group-price-editor");
 const venueEditorDialog = document.querySelector("#venue-editor-dialog");
 const venueEditorForm = document.querySelector("#venue-editor-form");
 const currentProfile = document.querySelector("#current-profile");
@@ -275,6 +294,7 @@ function saveGroupSettings() {
   const favorites = Object.fromEntries(recurringGroups.map((group) => [group.id, group.favorite === true]));
   localStorage.setItem(groupColorStorageKey, JSON.stringify(colors));
   localStorage.setItem(groupFavoriteStorageKey, JSON.stringify(favorites));
+  localStorage.setItem(groupStorageKey, JSON.stringify(recurringGroups));
 }
 
 function selectedMultiValues(container) {
@@ -479,6 +499,28 @@ function renderGroups() {
   groupGrid.querySelectorAll("[data-group-id]").forEach((button) => button.addEventListener("click", () => openGroupEditor(button.dataset.groupId)));
 }
 
+function addGroupPriceRow(value = "") {
+  const row = document.createElement("div");
+  row.className = "price-editor__row";
+  row.innerHTML = `<label><span>收費內容</span><input data-group-price value="${escapeHtml(value)}" placeholder="例如：男性 2 小時 $230" required></label><button type="button" aria-label="刪除此收費項目">刪除</button>`;
+  row.querySelector("button").addEventListener("click", () => {
+    if (groupPriceEditor.children.length === 1) row.querySelector("input").value = "";
+    else row.remove();
+  });
+  groupPriceEditor.append(row);
+}
+
+function renderGroupPrices(prices = []) {
+  groupPriceEditor.replaceChildren();
+  (prices.length ? prices : [""]).forEach(addGroupPriceRow);
+}
+
+function readGroupPrices() {
+  return [...groupPriceEditor.querySelectorAll("[data-group-price]")]
+    .map((input) => input.value.trim())
+    .filter(Boolean);
+}
+
 function openGroupEditor(groupId = null) {
   if (!requireAdmin()) return;
   editingGroupId = groupId;
@@ -500,6 +542,7 @@ function openGroupEditor(groupId = null) {
   document.querySelector("#group-session-capacity").value = session?.capacity || "";
   document.querySelector("#group-session-level").value = session?.level || "";
   document.querySelector("#group-ball-input").value = group?.ball === "未提供" ? "" : (group?.ball || "");
+  renderGroupPrices(session?.prices || []);
 
   const sessionVenue = document.querySelector("#session-venue");
   sessionVenue.querySelectorAll("option[data-temporary]").forEach((option) => option.remove());
@@ -540,7 +583,7 @@ function saveGroup(event) {
     courtNote: document.querySelector("#group-session-court-note").value.trim(),
     capacity: Number(document.querySelector("#group-session-capacity").value) || null,
     level: document.querySelector("#group-session-level").value.trim() || "未提供",
-    prices: ["價格待確認"],
+    prices: readGroupPrices(),
   };
   const basic = {
     name,
@@ -554,7 +597,7 @@ function saveGroup(event) {
   if (editingGroupId) {
     const group = recurringGroups.find((item) => item.id === editingGroupId);
     Object.assign(group, basic);
-    Object.assign(group.sessions[0], session, { prices: group.sessions[0].prices });
+    Object.assign(group.sessions[0], session);
     activities.filter((activity) => activity.groupId === group.id).forEach((activity) => Object.assign(activity, {
       name: group.name, contact: group.contact, status: group.status, favorite: group.favorite, ball: group.ball,
     }));
@@ -692,9 +735,6 @@ function saveVenue(event) {
     recurringGroups.forEach((group) => group.sessions.forEach((session) => {
       if (session.venue === oldName) Object.assign(session, { venue: name, district });
     }));
-    recurringSessions.forEach((session) => {
-      if (session.venue === oldName) Object.assign(session, { venue: name, district });
-    });
     activities.forEach((activity) => {
       if (activity.venue === oldName) Object.assign(activity, { venue: name, district });
     });
@@ -848,6 +888,7 @@ activityDialog.addEventListener("click", (event) => {
   if (event.target === activityDialog) activityDialog.close();
 });
 document.querySelector("#new-group-button").addEventListener("click", () => openGroupEditor());
+document.querySelector("#add-group-price").addEventListener("click", () => addGroupPriceRow());
 document.querySelector("#new-venue-button").addEventListener("click", () => openVenueEditor());
 document.querySelector("#group-editor-close").addEventListener("click", () => groupEditorDialog.close());
 document.querySelector("#group-editor-cancel").addEventListener("click", () => groupEditorDialog.close());

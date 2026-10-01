@@ -3,7 +3,7 @@ import { createAuthService, readJsonBody } from "./auth.js";
 import { sendJson } from "./http/response.js";
 import { serveStaticFile } from "./http/static-files.js";
 
-export const APP_VERSION = "1.1.0";
+export const APP_VERSION = "1.1.1";
 
 export function createApp(options = {}) {
   const appConfig = options.config ?? config;

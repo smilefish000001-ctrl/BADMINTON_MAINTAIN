@@ -3,8 +3,8 @@ import test from "node:test";
 import { recurringGroups, recurringSessions } from "../public/groups.js";
 
 test("匯入的固定團皆有可辨識的核心欄位", () => {
-  assert.equal(recurringGroups.length, 54);
-  assert.equal(recurringSessions.length, 93);
+  assert.equal(recurringGroups.length, 81);
+  assert.equal(recurringSessions.length, 137);
 
   for (const group of recurringGroups) {
     assert.ok(["active", "disabled"].includes(group.status));
@@ -74,6 +74,89 @@ test("2026-09-23 聊天紀錄新增三組明確的固定團", () => {
     assert.ok(group, `${name} 應已匯入`);
     assert.equal(group.sessions.length, sessionCount);
     assert.equal(group.source, "使用者提供的 2026-09-23 揪團聊天紀錄");
+  }
+});
+
+test("2026-09-24 聊天紀錄新增三組固定團並補上兩個既有團場次", () => {
+  const expectedNewGroups = new Map([
+    ["打一嘴好球", [1, "19:00", "21:30", "洲際羽球館"]],
+    ["星期宿羽球隊", [4, "20:30", "22:30", "大翔羽球館"]],
+    ["樂活羽球隊", [5, "20:00", "23:00", "福慧羽球館"]],
+  ]);
+
+  for (const [name, expectedSession] of expectedNewGroups) {
+    const group = recurringGroups.find((item) => item.name === name);
+    assert.ok(group, `${name} 應已匯入`);
+    assert.equal(group.importedAt, "2026-09-24");
+    assert.equal(group.source, "使用者提供的 2026-09-24 揪團聊天紀錄");
+    assert.deepEqual([
+      group.sessions[0].weekday,
+      group.sessions[0].start,
+      group.sessions[0].end,
+      group.sessions[0].venue,
+    ], expectedSession);
+  }
+
+  const bounce = recurringGroups.find((item) => item.name === "蹦蹦羽球隊");
+  assert.ok(bounce.sessions.some((session) => session.weekday === 4
+    && session.start === "19:00"
+    && session.end === "21:00"
+    && session.venue === "佳青羽球館"));
+
+  const spirit = recurringGroups.find((item) => item.name === "靈打羽球隊");
+  assert.ok(spirit.sessions.some((session) => session.weekday === 1
+    && session.start === "20:00"
+    && session.end === "22:00"
+    && session.venue === "亞伯林羽球館（振興店）"));
+});
+
+test("2026-09-30 聊天紀錄新增 17 組可明確辨識的球團", () => {
+  const expected = new Map([
+    ["東原歡樂羽球隊", 1],
+    ["蛇勒蛇勒蛇羽球隊", 1],
+    ["星光派對羽球團", 1],
+    ["臺體歡樂三&六", 3],
+    ["周周相見", 1],
+    ["羽I同在羽球團", 1],
+    ["不想睡覺～宵夜團", 1],
+    ["青羽聯誼社", 2],
+    ["DA。打羽球", 1],
+    ["影豹羽球隊", 1],
+    ["夜貓羽球團", 1],
+    ["毛毛羽球隊", 1],
+    ["羽晨羽球隊", 2],
+    ["專業撿球戶", 1],
+    ["球聚交友團", 1],
+    ["佛卡斯", 1],
+    ["月見羽球團", 2],
+  ]);
+
+  for (const [name, sessionCount] of expected) {
+    const group = recurringGroups.find((item) => item.name === name);
+    assert.ok(group, `${name} 應已匯入`);
+    assert.equal(group.sessions.length, sessionCount);
+    assert.equal(group.importedAt, "2026-09-30");
+    assert.equal(group.source, "使用者提供的 2026-09-30 揪團聊天紀錄");
+  }
+});
+
+test("2026-10-01 聊天紀錄新增 7 組可明確辨識的球團", () => {
+  const expected = new Map([
+    ["西匹西羽球隊", 1],
+    ["巨齒鯊羽球隊", 3],
+    ["東南週六羽球大軍", 1],
+    ["瑪利歐平日暢打", 3],
+    ["一拍即合羽球團", 7],
+    ["長春打球去", 1],
+    ["瘋羽無阻羽球隊", 1],
+  ]);
+
+  for (const [name, sessionCount] of expected) {
+    const group = recurringGroups.find((item) => item.name === name);
+    assert.ok(group, `${name} 應已匯入`);
+    assert.equal(group.sessions.length, sessionCount);
+    assert.equal(group.importedAt, "2026-10-01");
+    assert.equal(group.source, "使用者提供的 2026-10-01 揪團聊天紀錄");
   }
 });
 

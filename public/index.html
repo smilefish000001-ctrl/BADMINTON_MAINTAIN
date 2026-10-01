@@ -7,13 +7,13 @@
   <meta name="description" content="快速查看、篩選並參加一週羽球揪團活動。">
   <title>羽球揪團表</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css?v=23">
+  <link rel="stylesheet" href="/styles.css?v=27">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#week" aria-label="羽球揪團表首頁">
       <span class="brand__mark" aria-hidden="true">羽</span>
-      <span><b>羽球揪團表</b><small>找球友，隨時開打 · <span id="app-version">V1.1.0</span></small></span>
+      <span><b>羽球揪團表</b><small>找球友，隨時開打 · <span id="app-version">V1.1.1</span></small></span>
     </a>
     <button class="profile" id="current-profile" type="button" aria-label="目前登入帳號">
       <span class="avatar" id="current-user-avatar">訪</span>
@@ -115,7 +115,9 @@
             </div>
             <div class="session-subsection">
               <h3>收費</h3>
-              <div class="price-editor"><div><span>一般</span><b>2.5 小時</b><strong>$250</strong></div><div><span>男性</span><b>2 小時</b><strong>$230</strong></div><div><span>女性</span><b>2 小時</b><strong>$230</strong></div><button type="button" data-demo-toast="可增加不同時數、性別或身分的價格">＋ 價格</button></div>
+              <p class="price-editor__hint">每筆可輸入身分、時數與金額，例如「男性 2 小時 $230」。</p>
+              <div class="price-editor" id="group-price-editor"></div>
+              <button class="secondary-action" id="add-group-price" type="button">＋ 新增收費項目</button>
             </div>
           </div>
           <button class="secondary-action" type="button" data-demo-toast="將新增另一個包含程度與收費的每週固定場次">＋ 新增另一個每週場次</button>
@@ -189,6 +191,6 @@
     <dl class="activity-dialog__details" id="activity-dialog-details"></dl>
   </dialog>
   <template id="activity-template"><article class="activity-card"><div class="date-block"><strong class="activity-day"></strong><span class="activity-weekday"></span></div><div class="activity-body"><div class="activity-top"><div class="tag-row"></div><span class="spots"></span></div><h2 class="activity-name"></h2><p class="activity-venue"></p><div class="activity-info"><span class="activity-time"></span><span class="activity-courts"></span><span class="activity-ball"></span></div><p class="activity-note"></p><div class="price-row"></div><div class="activity-footer"><span class="activity-contact"></span><button class="join-button" type="button">查看活動</button></div></div></article></template>
-  <script type="module" src="/app.js?v=26"></script>
+  <script type="module" src="/app.js?v=27"></script>
 </body>
 </html>
