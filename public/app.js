@@ -5,6 +5,7 @@ import { getUpcomingWeekDays } from "./week-dates.js";
 import { matchesWeekEntityFilters } from "./week-filters.js";
 import { mergeStoredGroups } from "./stored-data.js";
 
+const staticMode = location.protocol === "file:" || location.hostname.endsWith(".github.io");
 const venueStorageKey = "badminton-venue-directory-v1";
 const groupStorageKey = "badminton-group-directory-v1";
 const groupColorStorageKey = "badminton-group-colors-v1";
@@ -197,10 +198,13 @@ function renderCurrentUser() {
   const isAdmin = currentUser.role === "admin";
   document.querySelector("#current-user-avatar").textContent = isAdmin ? "管" : "訪";
   document.querySelector("#current-user-name").textContent = currentUser.displayName;
-  document.querySelector("#current-user-role").textContent = isAdmin ? currentUser.roleLabel : "點此登入";
+  document.querySelector("#current-user-role").textContent = isAdmin
+    ? currentUser.roleLabel
+    : staticMode ? "GitHub Pages 靜態版" : "點此登入";
+  currentProfile.disabled = staticMode;
   currentProfile.setAttribute("aria-label", isAdmin
     ? `目前登入帳號 ${currentUser.username}，${currentUser.roleLabel}，點選查看帳號或登出`
-    : "目前為訪客模式，點選登入系統管理員帳號");
+    : staticMode ? "GitHub Pages 靜態版，提供每週活動唯讀瀏覽" : "目前為訪客模式，點選登入系統管理員帳號");
   document.querySelectorAll("[data-admin-only]").forEach((element) => {
     element.hidden = !isAdmin;
   });
@@ -229,6 +233,11 @@ function requireAdmin() {
 }
 
 async function refreshSession() {
+  if (staticMode) {
+    currentUser = createGuestUser();
+    renderCurrentUser();
+    return;
+  }
   try {
     const response = await fetch("/api/session", { headers: { Accept: "application/json" } });
     const result = await response.json();
@@ -240,6 +249,7 @@ async function refreshSession() {
 }
 
 async function refreshVersionInfo() {
+  if (staticMode) return;
   try {
     const response = await fetch("/api/health", { headers: { Accept: "application/json" } });
     const result = await response.json();

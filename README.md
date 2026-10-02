@@ -52,7 +52,7 @@ npm run check
 npm test
 ```
 
-目前 `public/groups.js` 收錄 81 個球團、137 個每週場次，包含使用者提供的聊天紀錄，以及可公開核對的固定團資料。匯入時以「團名＋星期＋開始／結束時間＋球館」去重，只採用能確認固定週期、時段與球館的資訊；即時缺額不沿用，畫面統一顯示向團主確認，避免把過期名額當成現況。網路資料另保留 `source` 與 `sourceUrl`，方便日後複查。
+目前 `public/groups.js` 收錄 99 個球團、160 個每週場次，包含使用者提供的聊天紀錄，以及可公開核對的固定團資料。匯入時以「團名＋星期＋開始／結束時間＋球館」去重，只採用能確認固定週期、時段與球館的資訊；即時缺額不沿用，畫面統一顯示向團主確認，避免把過期名額當成現況。網路資料另保留 `source` 與 `sourceUrl`，方便日後複查。
 
 網站預設以訪客模式進入，只能瀏覽整週活動。點選右上角「訪客」可登入系統管理員帳號，登入後才會顯示活動總覽、開團設定與球館維護；工作階段使用 HttpOnly、SameSite Cookie 保存。開發環境預設帳號及密碼均為 `0000`，上線前必須透過 `ADMIN_USERNAME`、`ADMIN_PASSWORD` 環境變數覆寫，不可沿用測試密碼。
 
@@ -63,6 +63,14 @@ npm test
 固定團維護可在「收費」區塊新增、修改或刪除多筆收費內容；儲存後會同步更新整週活動及詳細資料，並保存在該瀏覽器的 Local Storage。
 
 健康檢查：<http://127.0.0.1:3090/api/health>
+
+## GitHub Pages 靜態版
+
+專案會在推送至 `main` 後，透過 `.github/workflows/deploy-pages.yml` 將 `public/` 自動部署成 GitHub Pages：
+
+<https://smilefish000001-ctrl.github.io/BADMINTON_MAINTAIN/>
+
+第一次使用時，請至 GitHub 儲存庫的 **Settings → Pages → Build and deployment**，將 **Source** 設為 **GitHub Actions**。靜態版可直接瀏覽與篩選每週活動，不需要啟動 Node.js Server；登入、球團維護與球館維護仍須使用 Server 版本。
 
 ## GitHub 初次設定
 
