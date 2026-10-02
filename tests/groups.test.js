@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { recurringGroups, recurringSessions } from "../public/groups.js";
+import { entityNameKey } from "../public/name-normalization.js";
 
 test("匯入的固定團皆有可辨識的核心欄位", () => {
   assert.equal(recurringGroups.length, 99);
@@ -193,12 +194,17 @@ test("2026-10-01 至 10-02 聊天紀錄新增 18 組可明確辨識的球團", (
 
 test("固定場次以團名、星期、時間及球館去重", () => {
   const keys = recurringSessions.map((session) => [
-    session.name,
+    entityNameKey(session.name),
     session.weekday,
     session.start,
     session.end,
-    session.venue,
+    entityNameKey(session.venue),
   ].join("|"));
 
+  assert.equal(new Set(keys).size, keys.length);
+});
+
+test("球團名稱忽略空白後仍不可重複", () => {
+  const keys = recurringGroups.map((group) => entityNameKey(group.name));
   assert.equal(new Set(keys).size, keys.length);
 });

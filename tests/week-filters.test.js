@@ -40,6 +40,6 @@ test("球隊及球館的狀態選單不再提供隱藏", () => {
 });
 
 test("畫面顯示目前版本", () => {
-  assert.match(htmlSource, /id="app-version">V1\.1\.1/);
+  assert.match(htmlSource, /id="app-version">V1\.1\.2/);
   assert.match(appSource, /fetch\("\/api\/health"/);
 });

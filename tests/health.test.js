@@ -29,7 +29,7 @@ test("GET /api/health 回傳服務狀態", async () => {
     assert.equal(response.status, 200);
     assert.equal(body.ok, true);
     assert.equal(body.app, "測試羽球活動表");
-    assert.equal(body.version, "1.1.1");
+    assert.equal(body.version, "1.1.2");
     assert.match(body.time, /^\d{4}-\d{2}-\d{2}T/);
   });
 });

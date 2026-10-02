@@ -3,7 +3,8 @@ import { recurringGroups, weekdayLabels } from "./groups.js";
 import { canAccessView, createGuestUser, createSessionUser } from "./account.js";
 import { getUpcomingWeekDays } from "./week-dates.js";
 import { matchesWeekEntityFilters } from "./week-filters.js";
-import { mergeStoredGroups } from "./stored-data.js";
+import { entityNameKey, normalizeEntityName, sameEntityName } from "./name-normalization.js";
+import { dedupeGroupsByName, mergeStoredGroups } from "./stored-data.js";
 
 const staticMode = location.protocol === "file:" || location.hostname.endsWith(".github.io");
 const venueStorageKey = "badminton-venue-directory-v1";
@@ -58,9 +59,12 @@ function colorClass(scope, key, color) {
   colorClassCache.set(className, normalized);
   return className;
 }
+let hasStoredVenues = false;
+let hasStoredGroups = false;
 try {
   const storedVenues = JSON.parse(localStorage.getItem(venueStorageKey) || "null");
   if (Array.isArray(storedVenues) && storedVenues.every((venue) => venue.id && venue.name && venue.address)) {
+    hasStoredVenues = true;
     const storedById = new Map(storedVenues.map((venue) => [venue.id, venue]));
     venues.forEach((venue) => Object.assign(venue, storedById.get(venue.id) || {}));
     storedVenues.filter((venue) => !venues.some((item) => item.id === venue.id)).forEach((venue) => venues.push(venue));
@@ -71,10 +75,33 @@ try {
 try {
   const storedGroups = JSON.parse(localStorage.getItem(groupStorageKey) || "null");
   if (Array.isArray(storedGroups) && storedGroups.every((group) => group.id && group.name && Array.isArray(group.sessions))) {
+    hasStoredGroups = true;
     mergeStoredGroups(recurringGroups, storedGroups);
   }
 } catch {
   localStorage.removeItem(groupStorageKey);
+}
+
+const uniqueVenues = [];
+const venueByName = new Map();
+venues.forEach((venue) => {
+  venue.name = normalizeEntityName(venue.name);
+  const key = entityNameKey(venue.name);
+  if (key && venueByName.has(key)) return;
+  uniqueVenues.push(venue);
+  if (key) venueByName.set(key, venue);
+});
+venues.splice(0, venues.length, ...uniqueVenues);
+dedupeGroupsByName(recurringGroups);
+recurringGroups.forEach((group) => group.sessions.forEach((session) => {
+  const canonicalVenue = venueByName.get(entityNameKey(session.venue));
+  session.venue = canonicalVenue?.name || normalizeEntityName(session.venue);
+}));
+if (hasStoredVenues) localStorage.setItem(venueStorageKey, JSON.stringify(venues));
+if (hasStoredGroups) localStorage.setItem(groupStorageKey, JSON.stringify(recurringGroups));
+
+function findVenueByName(name) {
+  return venues.find((venue) => sameEntityName(venue.name, name));
 }
 
 venues.forEach((venue, index) => {
@@ -266,7 +293,7 @@ function escapeHtml(value) {
 }
 
 function getActivityAvailability(activity) {
-  const venue = venues.find((item) => item.name === activity.venue);
+  const venue = findVenueByName(activity.venue);
   if (activity.status === "disabled") return { status: "disabled", reason: "活動停用" };
   if (venue?.status === "disabled") return { status: "disabled", reason: "球館停用" };
   return { status: "active", reason: "" };
@@ -292,7 +319,7 @@ function matchesLevel(level, selected) {
 
 function getActivityEntity(activity) {
   if (weekColorMode.value === "venue") {
-    const venue = venues.find((item) => item.name === activity.venue);
+    const venue = findVenueByName(activity.venue);
     return { key: venue?.id || activity.venue, label: activity.venue, color: normalizeColor(venue?.color, "#64748b") };
   }
   const group = recurringGroups.find((item) => item.id === activity.groupId);
@@ -331,7 +358,7 @@ function refreshWeekMultiFilters() {
   const district = weekDistrictFilter.value;
   const available = activities.filter((activity) => {
     const group = recurringGroups.find((item) => item.id === activity.groupId);
-    const venue = venues.find((item) => item.name === activity.venue);
+    const venue = findVenueByName(activity.venue);
     return (district === "all" || activity.district === district)
       && matchesWeekEntityFilters({
         group,
@@ -399,7 +426,7 @@ function renderWeek() {
   const selectedGroups = selectedMultiValues(weekGroupOptions);
   const visible = activities.filter((activity) => {
     const group = recurringGroups.find((item) => item.id === activity.groupId);
-    const venue = venues.find((item) => item.name === activity.venue);
+    const venue = findVenueByName(activity.venue);
     return (district === "all" || activity.district === district)
       && (selectedVenues.size === 0 || selectedVenues.has(activity.venue))
       && (selectedGroups.size === 0 || selectedGroups.has(activity.groupId))
@@ -557,7 +584,7 @@ function openGroupEditor(groupId = null) {
   const sessionVenue = document.querySelector("#session-venue");
   sessionVenue.querySelectorAll("option[data-temporary]").forEach((option) => option.remove());
   if (session) {
-    const venue = venues.find((item) => item.name === session.venue);
+    const venue = findVenueByName(session.venue);
     const hasSelectableVenue = venue && [...sessionVenue.options].some((option) => option.value === venue.id);
     if (hasSelectableVenue) sessionVenue.value = venue.id;
     else {
@@ -576,12 +603,19 @@ function openGroupEditor(groupId = null) {
 function saveGroup(event) {
   event.preventDefault();
   if (!requireAdmin()) return;
-  const name = document.querySelector("#group-name-input").value.trim();
+  const nameInput = document.querySelector("#group-name-input");
+  const name = normalizeEntityName(nameInput.value);
   if (!name) return;
+  const duplicateGroup = recurringGroups.find((group) => group.id !== editingGroupId && entityNameKey(group.name) === entityNameKey(name));
+  if (duplicateGroup) {
+    nameInput.focus();
+    showToast(`球團名稱已存在：${duplicateGroup.name}`);
+    return;
+  }
   const venueSelect = document.querySelector("#session-venue");
   const venueRecord = venues.find((venue) => venue.id === venueSelect.value);
   const selectedOption = venueSelect.selectedOptions[0];
-  const venueName = venueRecord?.name || selectedOption.textContent.split(" · ").slice(1).join(" · ");
+  const venueName = normalizeEntityName(venueRecord?.name || selectedOption.textContent.split(" · ").slice(1).join(" · "));
   const district = venueRecord?.district || selectedOption.dataset.district || "未提供";
   const session = {
     weekday: Number(document.querySelector("#group-session-weekday").value),
@@ -719,11 +753,19 @@ function refreshVenueDependentOptions() {
 function saveVenue(event) {
   event.preventDefault();
   if (!requireAdmin()) return;
-  const name = document.querySelector("#venue-name-input").value.trim();
+  const nameInput = document.querySelector("#venue-name-input");
+  const name = normalizeEntityName(nameInput.value);
   const city = document.querySelector("#venue-city-input").value.trim();
   const district = document.querySelector("#venue-district-input").value.trim();
   const address = document.querySelector("#venue-address-input").value.trim();
   if (!name || !city || !district || !address) return;
+
+  const duplicateVenue = venues.find((item) => item.id !== editingVenueId && entityNameKey(item.name) === entityNameKey(name));
+  if (duplicateVenue) {
+    nameInput.focus();
+    showToast(`球館名稱已存在：${duplicateVenue.name}`);
+    return;
+  }
 
   const venue = venues.find((item) => item.id === editingVenueId);
   const oldName = venue?.name;
@@ -743,10 +785,10 @@ function saveVenue(event) {
   if (venue) {
     Object.assign(venue, nextVenue);
     recurringGroups.forEach((group) => group.sessions.forEach((session) => {
-      if (session.venue === oldName) Object.assign(session, { venue: name, district });
+      if (sameEntityName(session.venue, oldName)) Object.assign(session, { venue: name, district });
     }));
     activities.forEach((activity) => {
-      if (activity.venue === oldName) Object.assign(activity, { venue: name, district });
+      if (sameEntityName(activity.venue, oldName)) Object.assign(activity, { venue: name, district });
     });
   } else {
     const nextNumber = Math.max(0, ...venues.map((item) => Number(item.id.replace("tc-", "")) || 0)) + 1;

@@ -1,13 +1,13 @@
 {
   "name": "badminton-event-schedule",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "private": true,
   "description": "羽球活動表網站",
   "type": "module",
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "node --watch --env-file-if-exists=.env server.js",
-    "check": "node --check server.js && node --check src/app.js && node --check src/auth.js && node --check src/config.js && node --check src/http/static-files.js && node --check public/account.js && node --check public/app.js && node --check public/groups.js && node --check public/venues.js && node --check public/week-dates.js && node --check public/week-filters.js",
+    "check": "node --check server.js && node --check src/app.js && node --check src/auth.js && node --check src/config.js && node --check src/http/static-files.js && node --check public/account.js && node --check public/app.js && node --check public/groups.js && node --check public/name-normalization.js && node --check public/stored-data.js && node --check public/venues.js && node --check public/week-dates.js && node --check public/week-filters.js",
     "test": "node --test --test-isolation=none tests/*.test.js"
   },
   "engines": {
