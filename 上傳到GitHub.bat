@@ -28,7 +28,7 @@ if errorlevel 1 (
   goto :end
 )
 
-echo [1/5] 取得 GitHub 最新狀態...
+echo [1/6] 取得 GitHub 最新狀態...
 git fetch origin main
 if errorlevel 1 goto :failed
 
@@ -42,7 +42,12 @@ if not "!REMOTE_AHEAD!"=="0" (
 )
 
 echo.
-echo [2/5] 本次異動：
+echo [2/6] 更新靜態網頁的資料時間...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$stamp = [DateTimeOffset]::Now.ToString('yyyy-MM-ddTHH:mm:sszzz'); $json = @{ lastUpdatedAt = $stamp } ^| ConvertTo-Json -Compress; [IO.File]::WriteAllText((Join-Path (Get-Location) 'public\build-info.json'), $json + [Environment]::NewLine, [Text.UTF8Encoding]::new($false))"
+if errorlevel 1 goto :failed
+
+echo.
+echo [3/6] 本次異動：
 git status --short
 set "HAS_CHANGES="
 for /f "delims=" %%A in ('git status --porcelain') do set "HAS_CHANGES=1"
@@ -52,7 +57,7 @@ if not defined HAS_CHANGES (
 )
 
 echo.
-echo [3/5] 執行程式檢查與測試...
+echo [4/6] 執行程式檢查與測試...
 call npm run check
 if errorlevel 1 goto :failed
 call npm test
@@ -63,7 +68,7 @@ set /p "COMMIT_MESSAGE=請輸入本次更新說明： "
 if "!COMMIT_MESSAGE!"=="" set "COMMIT_MESSAGE=更新羽球活動表"
 
 echo.
-echo [4/5] 準備提交以下檔案：
+echo [5/6] 準備提交以下檔案：
 git add -A
 git diff --cached --name-only
 
@@ -80,10 +85,10 @@ git commit -m "!COMMIT_MESSAGE!"
 if errorlevel 1 goto :failed
 
 echo.
-echo [5/5] 正在推送至 GitHub...
+echo [6/6] 正在推送至 GitHub...
 git push origin main
 if errorlevel 1 goto :failed
-echo 上傳完成；Railway 若已開啟自動部署，將自動建置新版。
+echo 上傳完成；GitHub Pages 與 Railway 若已開啟自動部署，將自動建置新版。
 goto :end
 
 :failed

@@ -1,6 +1,6 @@
 # 羽球活動表
 
-目前版本：**V1.1.2**
+目前版本：**V1.1.3**
 
 以 Node.js 24 開發、準備部署至 Railway 的羽球活動管理網站。目前完成可執行的基礎架構，業務功能將依後續需求逐步加入。
 
@@ -85,7 +85,7 @@ git remote add origin https://github.com/你的帳號/你的Repository.git
 git push -u origin main
 ```
 
-完成一次設定後，日常更新可雙擊 `上傳到GitHub.bat`。
+完成一次設定後，日常更新可雙擊 `上傳到GitHub.bat`。批次檔會在檢查與測試前自動更新 `public/build-info.json`，因此 GitHub Pages 會顯示這次上傳的台灣時間；推送完成後，GitHub Actions 會自動重新部署靜態網站。
 
 ## Railway 部署
 

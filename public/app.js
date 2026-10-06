@@ -213,6 +213,7 @@ const venueEditorDialog = document.querySelector("#venue-editor-dialog");
 const venueEditorForm = document.querySelector("#venue-editor-form");
 const currentProfile = document.querySelector("#current-profile");
 const appVersion = document.querySelector("#app-version");
+const dataLastUpdated = document.querySelector("#data-last-updated");
 const authDialog = document.querySelector("#auth-dialog");
 const loginForm = document.querySelector("#login-form");
 const loginError = document.querySelector("#login-error");
@@ -283,6 +284,27 @@ async function refreshVersionInfo() {
     if (response.ok && result.version) appVersion.textContent = `V${result.version}`;
   } catch {
     // 保留 HTML 中的版本備援資訊。
+  }
+}
+
+async function refreshBuildInfo() {
+  try {
+    const response = await fetch(`./build-info.json?ts=${Date.now()}`, { cache: "no-store", headers: { Accept: "application/json" } });
+    const result = await response.json();
+    const updatedAt = new Date(result.lastUpdatedAt);
+    if (!response.ok || Number.isNaN(updatedAt.getTime())) throw new Error("Invalid build information");
+    dataLastUpdated.dateTime = updatedAt.toISOString();
+    dataLastUpdated.textContent = new Intl.DateTimeFormat("zh-TW", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(updatedAt);
+  } catch {
+    dataLastUpdated.textContent = "時間未提供";
   }
 }
 
@@ -961,7 +983,7 @@ async function bootstrap() {
   renderWeek();
   renderGroups();
   renderVenues();
-  await Promise.all([refreshSession(), refreshVersionInfo()]);
+  await Promise.all([refreshSession(), refreshVersionInfo(), refreshBuildInfo()]);
   openView(location.hash.slice(1) || "week");
 }
 
