@@ -41,12 +41,20 @@ test("球隊及球館的狀態選單不再提供隱藏", () => {
 });
 
 test("畫面顯示目前版本", () => {
-  assert.match(htmlSource, /id="app-version">V1\.1\.4/);
+  assert.match(htmlSource, /id="app-version">V1\.1\.5/);
   assert.match(appSource, /fetch\("\/api\/health"/);
+});
+
+test("訪客頁使用精簡的台中每週揪團表標題", () => {
+  assert.match(htmlSource, /<b>台中每週揪團表<\/b>/);
+  assert.doesNotMatch(htmlSource, /找球友，隨時開打/);
+  assert.match(htmlSource, /data-view="week" hidden>整週活動/);
 });
 
 test("整週星期標題會固定在頂端導覽列下方", () => {
   assert.match(stylesSource, /\.week-board\{[^}]*overflow:visible/);
-  assert.match(stylesSource, /\.week-calendar__header\{position:sticky;z-index:4;top:76px/);
-  assert.match(stylesSource, /@media\(max-width:680px\)\{\.week-calendar__header\{top:66px\}\}/);
+  assert.match(stylesSource, /\.week-calendar__header\{position:sticky/);
+  assert.match(stylesSource, /\.week-calendar__header\{top:42px\}/);
+  assert.match(appSource, /<span>星期\$\{day\.label\}<\/span><b>\$\{day\.date\}<\/b>/);
+  assert.doesNotMatch(appSource, /dayCounts/);
 });

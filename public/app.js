@@ -212,6 +212,7 @@ const groupPriceEditor = document.querySelector("#group-price-editor");
 const venueEditorDialog = document.querySelector("#venue-editor-dialog");
 const venueEditorForm = document.querySelector("#venue-editor-form");
 const currentProfile = document.querySelector("#current-profile");
+const weekNavItem = document.querySelector('[data-view="week"]');
 const appVersion = document.querySelector("#app-version");
 const dataLastUpdated = document.querySelector("#data-last-updated");
 const authDialog = document.querySelector("#auth-dialog");
@@ -236,6 +237,7 @@ function renderCurrentUser() {
   document.querySelectorAll("[data-admin-only]").forEach((element) => {
     element.hidden = !isAdmin;
   });
+  weekNavItem.hidden = !isAdmin;
   if (!isAdmin && weekFavoritesOnly.checked) {
     weekFavoritesOnly.checked = false;
     refreshWeekMultiFilters();
@@ -462,8 +464,7 @@ function renderWeek() {
       });
   });
   const startTimes = [...new Set(visible.map((activity) => activity.start))].sort();
-  const dayCounts = new Map(weekDays.map((day) => [day.key, visible.filter((activity) => activity.isoDay === day.key).length]));
-  const header = `<div class="week-calendar__header"><div class="week-calendar__corner">時間</div>${weekDays.map((day) => `<div><span>週${day.label}</span><b>${day.date}</b><i>${dayCounts.get(day.key)} 場</i></div>`).join("")}</div>`;
+  const header = `<div class="week-calendar__header"><div class="week-calendar__corner">時間</div>${weekDays.map((day) => `<div><span>星期${day.label}</span><b>${day.date}</b></div>`).join("")}</div>`;
   const rows = startTimes.map((startTime) => {
     const cells = weekDays.map((day) => {
       const items = visible.filter((activity) => activity.isoDay === day.key && activity.start === startTime);

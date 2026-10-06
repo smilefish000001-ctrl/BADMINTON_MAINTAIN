@@ -61,3 +61,15 @@ main{width:100%;margin:0;padding:30px clamp(16px,1.7vw,28px) 80px}.view{display:
 @media(max-width:680px){.price-editor{grid-template-columns:1fr}.price-editor__row{grid-template-columns:1fr!important}.price-editor__row button{min-height:36px!important}}
 
 .profile:disabled{cursor:default;opacity:1}.profile:disabled .profile__text small{color:#60736d}
+
+/* Compact header and sticky weekday row */
+.topbar{min-height:42px;padding:0 clamp(12px,1.7vw,24px);gap:16px}
+.brand{gap:9px}.brand__mark{width:30px;height:30px;border-radius:9px 9px 9px 3px;font-size:.9rem;box-shadow:0 5px 14px rgba(7,107,89,.2)}.brand b{font-size:.9rem}
+.nav{height:42px}.nav__item{font-size:.82rem}
+.profile{gap:8px;padding:3px 8px 3px 3px;border-radius:10px}.avatar{width:30px;height:30px;border-radius:8px;font-size:.82rem}.profile small{margin-top:1px;font-size:.68rem}
+.week-calendar__header{top:42px}
+.week-calendar__corner,.week-calendar__header>div{padding:5px 8px}
+.week-calendar__header span{color:var(--green-dark);font-size:.95rem;font-weight:900}
+.week-calendar__header b{margin-top:1px;color:var(--muted);font-size:.7rem}
+@media(max-width:760px){.week-calendar__corner,.week-calendar__header>div{padding:4px 2px}.week-calendar__header span{font-size:.68rem}.week-calendar__header b{font-size:.58rem}}
+@media(max-width:680px){.topbar{min-height:42px;padding:0 12px}.brand__mark{width:28px;height:28px}.brand b{font-size:.84rem}.profile{padding:3px}.week-calendar__header{top:42px}}

@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#075e54">
   <meta name="description" content="快速查看、篩選並參加一週羽球揪團活動。">
-  <title>羽球揪團表</title>
+  <title>台中每週揪團表</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=30">
+  <link rel="stylesheet" href="./styles.css?v=31">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#week" aria-label="羽球揪團表首頁">
+    <a class="brand" href="#week" aria-label="台中每週揪團表首頁">
       <span class="brand__mark" aria-hidden="true">羽</span>
-      <span><b>羽球揪團表</b><small>找球友，隨時開打 · <span id="app-version">V1.1.4</span></small></span>
+      <span><b>台中每週揪團表</b><span class="sr-only" id="app-version">V1.1.5</span></span>
     </a>
     <button class="profile" id="current-profile" type="button" aria-label="目前登入帳號">
       <span class="avatar" id="current-user-avatar">訪</span>
@@ -23,7 +23,7 @@
   </header>
   <nav class="nav" aria-label="主要導覽">
     <button class="nav__item" type="button" data-view="activities" data-admin-only hidden>活動總覽</button>
-    <button class="nav__item is-active" type="button" data-view="week">整週活動</button>
+    <button class="nav__item is-active" type="button" data-view="week" hidden>整週活動</button>
     <button class="nav__item" type="button" data-view="groups" data-admin-only hidden>開團設定</button>
     <button class="nav__item" type="button" data-view="venues" data-admin-only hidden>球館維護</button>
   </nav>
@@ -192,6 +192,6 @@
     <dl class="activity-dialog__details" id="activity-dialog-details"></dl>
   </dialog>
   <template id="activity-template"><article class="activity-card"><div class="date-block"><strong class="activity-day"></strong><span class="activity-weekday"></span></div><div class="activity-body"><div class="activity-top"><div class="tag-row"></div><span class="spots"></span></div><h2 class="activity-name"></h2><p class="activity-venue"></p><div class="activity-info"><span class="activity-time"></span><span class="activity-courts"></span><span class="activity-ball"></span></div><p class="activity-note"></p><div class="price-row"></div><div class="activity-footer"><span class="activity-contact"></span><button class="join-button" type="button">查看活動</button></div></div></article></template>
-  <script type="module" src="./app.js?v=30"></script>
+  <script type="module" src="./app.js?v=31"></script>
 </body>
 </html>
