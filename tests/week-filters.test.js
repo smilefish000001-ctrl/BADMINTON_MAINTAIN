@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const appSource = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
 const htmlSource = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+const stylesSource = await readFile(new URL("../public/styles.css", import.meta.url), "utf8");
 
 test("整週活動提供球館與球隊多選篩選", () => {
   assert.match(htmlSource, /id="week-venue-options"/);
@@ -40,6 +41,12 @@ test("球隊及球館的狀態選單不再提供隱藏", () => {
 });
 
 test("畫面顯示目前版本", () => {
-  assert.match(htmlSource, /id="app-version">V1\.1\.3/);
+  assert.match(htmlSource, /id="app-version">V1\.1\.4/);
   assert.match(appSource, /fetch\("\/api\/health"/);
+});
+
+test("整週星期標題會固定在頂端導覽列下方", () => {
+  assert.match(stylesSource, /\.week-board\{[^}]*overflow:visible/);
+  assert.match(stylesSource, /\.week-calendar__header\{position:sticky;z-index:4;top:76px/);
+  assert.match(stylesSource, /@media\(max-width:680px\)\{\.week-calendar__header\{top:66px\}\}/);
 });
